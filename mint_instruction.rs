@@ -10,7 +10,7 @@ use solana_sdk::{
 };
 use spl_associated_token_account::get_associated_token_address_with_program_id;
 
-use crate::constants::{ondo_gm_program_id, admin_minter, token_2022_program_id};
+use crate::constants::{admin_minter, ondo_gm_program_id, token_2022_program_id};
 
 /// Anchor discriminator for "mint_gm" instruction
 /// Verified from on-chain IDL at XzTT4XB8m7sLD2xi6snefSasaswsKCxx5Tifjondogm

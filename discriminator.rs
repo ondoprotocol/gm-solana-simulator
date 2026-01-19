@@ -24,7 +24,7 @@ use sha2::{Digest, Sha256};
 /// # Example
 ///
 /// ```
-/// use ondo_gm_simulator::instruction_discriminator;
+/// use gm_solana_simulator::instruction_discriminator;
 ///
 /// // This is the theoretical calculation, but actual discriminators
 /// // should be verified against on-chain IDL
