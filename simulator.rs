@@ -5,7 +5,10 @@
 //! 2. Building mock mint transactions for bundle simulation
 
 use solana_sdk::{
-    hash::Hash, instruction::Instruction, message::Message, transaction::Transaction,
+    hash::Hash,
+    instruction::Instruction,
+    message::{Message, VersionedMessage},
+    transaction::{Transaction, VersionedTransaction},
 };
 
 use crate::{
@@ -78,6 +81,67 @@ pub fn check_gm_trade_message(message: &Message) -> Result<GmCheckResult, GmSimu
     match parse_fill_for_gm_trade(instruction, account_keys)? {
         Some(trade_info) => Ok(GmCheckResult::gm_trade(trade_info)),
         None => Ok(GmCheckResult::not_gm_trade()),
+    }
+}
+
+/// Check if a versioned transaction should use GM bundle simulation.
+///
+/// This function supports both legacy and v0 transactions. For v0 transactions
+/// with address lookup tables, only the static account keys are checked.
+///
+/// # Arguments
+///
+/// * `transaction` - The versioned transaction to check
+///
+/// # Returns
+///
+/// * `Ok(GmCheckResult)` with `use_gm_bundle_sim = true` and trade info if this is a GM trade
+/// * `Ok(GmCheckResult)` with `use_gm_bundle_sim = false` if not a GM trade
+/// * `Err` if the transaction is malformed or has an unauthorized maker
+pub fn check_gm_trade_versioned(
+    transaction: &VersionedTransaction,
+) -> Result<GmCheckResult, GmSimulatorError> {
+    check_gm_trade_versioned_message(&transaction.message)
+}
+
+/// Check if a versioned message should use GM bundle simulation.
+///
+/// Same as `check_gm_trade_versioned` but operates on a `VersionedMessage` instead of `VersionedTransaction`.
+///
+/// Note: For V0 messages with address lookup tables, this function only checks the static
+/// account keys. If the Jupiter fill instruction references accounts from lookup tables,
+/// the check may not work correctly. In practice, the critical accounts (taker, maker,
+/// output_mint) are typically in the static keys.
+pub fn check_gm_trade_versioned_message(
+    message: &VersionedMessage,
+) -> Result<GmCheckResult, GmSimulatorError> {
+    match message {
+        VersionedMessage::Legacy(legacy_msg) => check_gm_trade_message(legacy_msg),
+        VersionedMessage::V0(v0_msg) => {
+            let account_keys = &v0_msg.account_keys;
+            let jupiter_program_id = jupiter_order_engine_program_id();
+
+            // Check 1: Must have at least one instruction
+            if v0_msg.instructions.is_empty() {
+                return Err(GmSimulatorError::EmptyTransaction);
+            }
+
+            // Check 2: Find Jupiter Order Engine fill instruction
+            let fill_instruction = v0_msg
+                .instructions
+                .iter()
+                .find(|ix| is_jupiter_fill_instruction(ix, &jupiter_program_id, account_keys));
+
+            let Some(instruction) = fill_instruction else {
+                return Ok(GmCheckResult::not_gm_trade());
+            };
+
+            // Check 3 & 4: Parse and validate (maker must be authorized, output must be GM token)
+            match parse_fill_for_gm_trade(instruction, account_keys)? {
+                Some(trade_info) => Ok(GmCheckResult::gm_trade(trade_info)),
+                None => Ok(GmCheckResult::not_gm_trade()),
+            }
+        }
     }
 }
 
@@ -711,7 +775,7 @@ mod tests {
                 AccountMeta::new_readonly(crate::constants::spl_token_program_id(), false),
                 AccountMeta::new_readonly(aapl_mint, false),
                 AccountMeta::new_readonly(crate::constants::token_2022_program_id(), false),
-                AccountMeta::new_readonly(solana_sdk::system_program::id(), false),
+                AccountMeta::new_readonly(solana_system_interface::program::id(), false),
             ],
             data: buy_data,
         };
@@ -804,7 +868,7 @@ mod tests {
                 AccountMeta::new_readonly(crate::constants::token_2022_program_id(), false),
                 AccountMeta::new_readonly(usdc_mint, false),  // Output mint (USDC)
                 AccountMeta::new_readonly(crate::constants::spl_token_program_id(), false),
-                AccountMeta::new_readonly(solana_sdk::system_program::id(), false),
+                AccountMeta::new_readonly(solana_system_interface::program::id(), false),
             ],
             data: sell_data,
         };

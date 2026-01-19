@@ -6,7 +6,6 @@
 use solana_sdk::{
     instruction::{AccountMeta, Instruction},
     pubkey::Pubkey,
-    system_program,
 };
 use spl_associated_token_account::get_associated_token_address_with_program_id;
 
@@ -101,7 +100,7 @@ pub fn build_mock_mint_gm_instruction(
         AccountMeta::new_readonly(usdon_manager_state, false), // 8: usdon_manager_state PDA
         AccountMeta::new_readonly(token_program, false), // 9: token_program (Token-2022)
         AccountMeta::new_readonly(spl_associated_token_account::id(), false), // 10: ATA program
-        AccountMeta::new_readonly(system_program::id(), false), // 11: system_program
+        AccountMeta::new_readonly(solana_system_interface::program::id(), false), // 11: system_program
     ];
 
     Instruction {
@@ -164,7 +163,7 @@ pub fn build_mock_mint_gm_instruction_with_ata(
         AccountMeta::new_readonly(usdon_manager_state, false), // 8: usdon_manager_state PDA
         AccountMeta::new_readonly(token_program, false), // 9: token_program (Token-2022)
         AccountMeta::new_readonly(spl_associated_token_account::id(), false), // 10: ATA program
-        AccountMeta::new_readonly(system_program::id(), false), // 11: system_program
+        AccountMeta::new_readonly(solana_system_interface::program::id(), false), // 11: system_program
     ];
 
     Instruction {
