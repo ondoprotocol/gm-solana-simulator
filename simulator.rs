@@ -1494,4 +1494,204 @@ mod tests {
             println!("{}", "=".repeat(80));
         }
     }
+
+    /// Test a base64-encoded transaction payload from a file.
+    ///
+    /// This test reads a base64-encoded transaction from `./payload` file and:
+    /// 1. Decodes and deserializes the transaction
+    /// 2. Checks if it's a GM trade
+    /// 3. If yes, builds mock mint and simulates the bundle
+    ///
+    /// Run with: `RPC_URL=<your_rpc> cargo test test_payload_file -- --ignored --nocapture`
+    #[test]
+    #[ignore]
+    fn test_payload_file() {
+        use base64::Engine;
+
+        println!("{}", "=".repeat(80));
+        println!("PAYLOAD FILE TEST");
+        println!("{}", "=".repeat(80));
+
+        // Read the payload file
+        let payload_path = std::env::var("PAYLOAD_FILE").unwrap_or_else(|_| "payload".to_string());
+        println!("Reading payload from: {}", payload_path);
+
+        let base64_payload = std::fs::read_to_string(&payload_path)
+            .expect("Failed to read payload file")
+            .trim()
+            .to_string();
+
+        println!("Payload length: {} bytes (base64)", base64_payload.len());
+
+        // Decode base64
+        let tx_data = base64::engine::general_purpose::STANDARD
+            .decode(&base64_payload)
+            .expect("Failed to decode base64 payload");
+        println!("Decoded transaction: {} bytes", tx_data.len());
+
+        // Try to deserialize as VersionedTransaction first
+        let versioned_tx: VersionedTransaction =
+            bincode::deserialize(&tx_data).expect("Failed to deserialize as VersionedTransaction");
+
+        println!(
+            "Transaction type: {}",
+            match &versioned_tx.message {
+                solana_sdk::message::VersionedMessage::Legacy(_) => "Legacy",
+                solana_sdk::message::VersionedMessage::V0(_) => "V0 (versioned)",
+            }
+        );
+
+        // Check if it's a GM trade using versioned check
+        println!("\nChecking GM trade detection...");
+        let result = check_gm_trade_versioned(&versioned_tx);
+
+        match &result {
+            Ok(check_result) if check_result.use_gm_bundle_sim => {
+                println!("✓ GM BUY trade detected - bundle simulation REQUIRED");
+            }
+            Ok(check_result) if !check_result.use_gm_bundle_sim => {
+                println!("✓ GM SELL trade or non-GM trade - bundle simulation NOT required");
+            }
+            Ok(_) => {}
+            Err(e) => {
+                println!("✗ Error checking GM trade: {:?}", e);
+                panic!("GM trade check failed");
+            }
+        }
+
+        let result = result.expect("Failed to check GM trade");
+
+        if result.use_gm_bundle_sim {
+            let trade_info = result.trade_info.expect("Expected trade info");
+            println!("\n✓ GM BUY Trade Details:");
+            println!("  Maker (solver): {}", trade_info.maker);
+            println!("  Taker (user): {}", trade_info.taker);
+            println!(
+                "  GM Token: {} ({})",
+                trade_info.gm_token_symbol, trade_info.gm_token_mint
+            );
+            println!(
+                "  Amount: {} ({:.6} {})",
+                trade_info.gm_token_amount,
+                trade_info.gm_token_amount as f64 / 1_000_000_000.0,
+                trade_info.gm_token_symbol
+            );
+            println!("  Expire At: {}", trade_info.expire_at);
+
+            // Initialize RPC client
+            let rpc_url = std::env::var("RPC_URL")
+                .unwrap_or_else(|_| "https://api.mainnet-beta.solana.com".to_string());
+            println!("\nUsing RPC: {}", rpc_url);
+
+            // Convert versioned tx to legacy for simulation (EXACT payload - no modifications)
+            let original_tx: Transaction = match versioned_tx.message {
+                solana_sdk::message::VersionedMessage::Legacy(legacy_msg) => {
+                    let mut tx = Transaction::new_unsigned(legacy_msg);
+                    tx.signatures = versioned_tx.signatures;
+                    tx
+                }
+                solana_sdk::message::VersionedMessage::V0(v0_msg) => {
+                    // Convert V0 to legacy (note: this loses lookup table info)
+                    let legacy_msg = Message {
+                        header: v0_msg.header,
+                        account_keys: v0_msg.account_keys,
+                        recent_blockhash: v0_msg.recent_blockhash,
+                        instructions: v0_msg.instructions,
+                    };
+                    let mut tx = Transaction::new_unsigned(legacy_msg);
+                    tx.signatures = versioned_tx.signatures;
+                    tx
+                }
+            };
+
+            // Use the EXACT blockhash from the original transaction
+            let original_blockhash = original_tx.message.recent_blockhash;
+            println!("\nUsing EXACT transaction payload (no modifications):");
+            println!("  Blockhash from payload: {}", original_blockhash);
+            println!("  Expire At from payload: {}", trade_info.expire_at);
+
+            // Build the mock mint transaction with the SAME blockhash as the original
+            println!("\nBuilding mock mint transaction...");
+            let mock_mint_tx = build_mock_mint_transaction(&trade_info, original_blockhash);
+            println!(
+                "✓ Mock mint transaction built ({} instructions)",
+                mock_mint_tx.message.instructions.len()
+            );
+
+            // Simulate the bundle with EXACT original transaction
+            println!("\nSimulating bundle via Jito...");
+            println!("  Bundle: [mock_mint_tx, original_fill_tx (unchanged)]");
+
+            match simulate_as_bundle(
+                vec![mock_mint_tx, original_tx],
+                &trade_info,
+                &rpc_url,
+            ) {
+                Ok(sim_result) => {
+                    if sim_result.success {
+                        println!("\n✓ Bundle simulation SUCCEEDED!");
+                    } else {
+                        println!(
+                            "\n✗ Bundle simulation failed: {:?}",
+                            sim_result.error.as_deref().unwrap_or("unknown error")
+                        );
+                    }
+
+                    // Print taker balance changes
+                    println!("\nTaker Balance Changes:");
+                    if sim_result.taker_balance_changes.is_empty() {
+                        println!("  (no balance changes detected)");
+                    } else {
+                        for change in &sim_result.taker_balance_changes {
+                            let symbol = change.symbol.as_deref().unwrap_or("?");
+                            let sign = if change.change >= 0 { "+" } else { "" };
+                            println!(
+                                "  {} {}: {}{:.6}",
+                                change.token_account,
+                                symbol,
+                                sign,
+                                change.change_display()
+                            );
+                            println!(
+                                "    Pre:  {:.6} {} (raw: {})",
+                                change.pre_balance as f64 / 10f64.powi(change.decimals as i32),
+                                symbol,
+                                change.pre_balance
+                            );
+                            println!(
+                                "    Post: {:.6} {} (raw: {})",
+                                change.post_balance as f64 / 10f64.powi(change.decimals as i32),
+                                symbol,
+                                change.post_balance
+                            );
+                        }
+                    }
+
+                    // Print some logs
+                    if let Some(logs) = &sim_result.logs {
+                        println!("\nSimulation Logs ({} entries):", logs.len());
+                        for log in logs.iter().take(15) {
+                            println!("  {}", log);
+                        }
+                        if logs.len() > 15 {
+                            println!("  ... and {} more", logs.len() - 15);
+                        }
+                    }
+                }
+                Err(e) => {
+                    println!("\n✗ simulate_as_bundle error: {:?}", e);
+                }
+            }
+
+            println!("\n{}", "=".repeat(80));
+            println!("✓ PAYLOAD FILE TEST COMPLETED");
+            println!("{}", "=".repeat(80));
+        } else {
+            println!("\n✓ Transaction does not require bundle simulation");
+            println!("  This can use standard single-transaction simulation.");
+            println!("\n{}", "=".repeat(80));
+            println!("✓ PAYLOAD FILE TEST COMPLETED (NO BUNDLE SIM NEEDED)");
+            println!("{}", "=".repeat(80));
+        }
+    }
 }
