@@ -20,19 +20,39 @@ gm-solana-simulator = { git = "https://github.com/ondoprotocol/gm-solana-simulat
 ## Quick Start
 
 ```rust
-use ondo_gm_simulator::{check_gm_trade, build_mock_mint_transaction, GmSimulatorError};
+use gm_solana_simulator::{
+    check_gm_trade, build_mock_mint_transaction, simulate_as_bundle,
+    GmSimulatorError, BundleSimulationResult
+};
 use solana_sdk::{hash::Hash, transaction::Transaction};
 
-fn handle_simulation(tx: &Transaction, recent_blockhash: Hash) {
+fn handle_simulation(tx: &Transaction, recent_blockhash: Hash, rpc_url: &str) {
     match check_gm_trade(tx) {
         Ok(result) if result.use_gm_bundle_sim => {
             // This is a GM trade - simulate as bundle
             let trade_info = result.trade_info.unwrap();
             let mock_mint_tx = build_mock_mint_transaction(&trade_info, recent_blockhash);
-            
-            // Simulate bundle: [mock_mint_tx, tx]
-            // The mock mint provides the GM tokens that the fill needs
-            simulate_as_bundle(vec![mock_mint_tx, tx.clone()]);
+
+            // Simulate bundle and get taker balance changes
+            match simulate_as_bundle(vec![mock_mint_tx, tx.clone()], &trade_info, rpc_url) {
+                Ok(sim_result) => {
+                    if sim_result.success {
+                        println!("Simulation succeeded!");
+                        for change in &sim_result.taker_balance_changes {
+                            println!(
+                                "{}: {} (pre: {}, post: {})",
+                                change.symbol.as_deref().unwrap_or("?"),
+                                change.change_display(),
+                                change.pre_balance,
+                                change.post_balance
+                            );
+                        }
+                    } else {
+                        println!("Simulation failed: {:?}", sim_result.error);
+                    }
+                }
+                Err(e) => println!("Error: {:?}", e),
+            }
         }
         Ok(_) => {
             // Not a GM trade - use normal simulation
@@ -40,7 +60,6 @@ fn handle_simulation(tx: &Transaction, recent_blockhash: Hash) {
         }
         Err(GmSimulatorError::UnauthorizedMaker(maker)) => {
             // Jupiter RFQ with GM token but unauthorized maker
-            // This should be rejected or warned about
             warn!("Unauthorized GM maker: {}", maker);
         }
         Err(_) => {
@@ -71,7 +90,7 @@ A transaction qualifies as a GM trade that requires bundle simulation if **ALL**
 /// Check if a transaction is a GM trade
 pub fn check_gm_trade(transaction: &Transaction) -> Result<GmCheckResult, GmSimulatorError>
 
-/// Build mock mint transaction for bundle simulation  
+/// Build mock mint transaction for bundle simulation
 pub fn build_mock_mint_transaction(trade_info: &GmTradeInfo, recent_blockhash: Hash) -> Transaction
 
 /// Convenience: check and build in one call
@@ -79,6 +98,13 @@ pub fn maybe_build_mock_mint(
     transaction: &Transaction,
     recent_blockhash: Hash,
 ) -> Result<Option<Transaction>, GmSimulatorError>
+
+/// Simulate bundle via Jito and return taker balance changes
+pub fn simulate_as_bundle(
+    transactions: Vec<Transaction>,
+    trade_info: &GmTradeInfo,
+    rpc_url: &str,
+) -> Result<BundleSimulationResult, GmSimulatorError>
 ```
 
 ### Types
@@ -96,6 +122,25 @@ pub struct GmTradeInfo {
     pub gm_token_symbol: String, // e.g., "AAPLon"
     pub gm_token_amount: u64,    // Amount (9 decimals)
     pub maker_output_account: Pubkey, // Solver's token account
+    pub expire_at: i64,          // Quote expiration timestamp
+}
+
+pub struct BundleSimulationResult {
+    pub success: bool,                           // Whether simulation succeeded
+    pub error: Option<String>,                   // Error message if failed
+    pub taker_balance_changes: Vec<BalanceChange>, // Balance changes for taker
+    pub logs: Option<Vec<String>>,               // Simulation logs
+}
+
+pub struct BalanceChange {
+    pub mint: Pubkey,           // Token mint address
+    pub symbol: Option<String>, // Token symbol (e.g., "USDC", "AAPLon")
+    pub owner: Pubkey,          // Account owner
+    pub token_account: Pubkey,  // Token account address
+    pub pre_balance: u64,       // Balance before transaction
+    pub post_balance: u64,      // Balance after transaction
+    pub change: i128,           // Change amount (positive = received)
+    pub decimals: u8,           // Token decimals for display
 }
 
 pub enum GmSimulatorError {
