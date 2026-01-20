@@ -436,6 +436,74 @@ RPC_URL=https://mainnet.helius-rpc.com/?api-key=xxxxx cargo test test_from_scrat
 - ✓ Detection identifies bundle simulation as NOT required
 - ✓ Proper differentiation between BUY and SELL flows
 
+### Payload File Test
+
+Test a base64-encoded transaction payload directly from a file. This is useful for testing transactions captured from a browser wallet before signing.
+
+#### Basic Usage
+
+1. Save the base64-encoded transaction to a file (e.g., `payload`)
+2. Run the test:
+
+```bash
+RPC_URL=https://your-jito-rpc.com cargo test test_payload_file -- --ignored --nocapture
+```
+
+By default, the test reads from `./payload`. To use a different file:
+
+```bash
+RPC_URL=https://your-jito-rpc.com PAYLOAD_FILE=./my_tx.txt cargo test test_payload_file -- --ignored --nocapture
+```
+
+#### What it does
+
+1. Reads base64-encoded transaction from file
+2. Deserializes as `VersionedTransaction` (supports both legacy and V0)
+3. Checks if it's a GM trade using `check_gm_trade_versioned`
+4. If it's a GM BUY trade, builds mock mint and simulates the bundle via Jito
+5. Reports balance changes and simulation results
+
+**Important:** The test uses the **exact** transaction payload with no modifications (blockhash, expiration, etc. are preserved). This validates that the transaction will simulate correctly as-is.
+
+#### Expected Output
+
+```
+================================================================================
+PAYLOAD FILE TEST
+================================================================================
+Reading payload from: payload
+Payload length: 624 bytes (base64)
+Decoded transaction: 468 bytes
+Transaction type: Legacy
+
+Checking GM trade detection...
+✓ GM BUY trade detected - bundle simulation REQUIRED
+
+✓ GM BUY Trade Details:
+  Maker (solver): DSqMPMsMAbEJVNuPKv1ZFdzt6YvJaDPDddfeW7ajtqds
+  Taker (user): HCW4konwboLLLvNFxs8FPv7ZzgxA7s9MnPCUwdY55gxW
+  GM Token: BTGOon (9MqLg9AMuMKdFUyuVHCWb4BN1YChftEfMqpNJzeromu9)
+  Amount: 43831000 (0.043831 BTGOon)
+  Expire At: 1768578786
+
+Using RPC: https://your-rpc.com
+
+Using EXACT transaction payload (no modifications):
+  Blockhash from payload: 8rV...
+  Expire At from payload: 1768578786
+
+Building mock mint transaction...
+✓ Mock mint transaction built (5 instructions)
+
+Simulating bundle via Jito...
+  Bundle: [mock_mint_tx, original_fill_tx (unchanged)]
+
+✓ Bundle simulation SUCCEEDED!
+
+Taker Balance Changes:
+  ...
+```
+
 ## Maintenance
 
 This crate is maintained by Ondo Finance. Contact: engineering@ondo.finance
