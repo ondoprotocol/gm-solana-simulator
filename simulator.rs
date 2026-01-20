@@ -332,6 +332,280 @@ pub fn maybe_build_mock_mint(
     }
 }
 
+/// Simulate a bundle of transactions using Jito's simulateBundle RPC method.
+///
+/// This function sends the transactions to a Jito-enabled RPC endpoint for bundle simulation,
+/// and extracts balance changes for the taker account from the Jupiter RFQ fill transaction.
+///
+/// # Arguments
+///
+/// * `transactions` - Vector of transactions to simulate as a bundle (typically [mock_mint_tx, fill_tx])
+/// * `trade_info` - The GM trade info containing taker and token information
+/// * `rpc_url` - The Jito-enabled RPC URL to use for simulation
+///
+/// # Returns
+///
+/// A `BundleSimulationResult` containing:
+/// - `success`: Whether the simulation succeeded
+/// - `error`: Error message if simulation failed
+/// - `taker_balance_changes`: Balance changes for the taker's token accounts
+/// - `logs`: Optional simulation logs
+///
+/// # Example
+///
+/// ```ignore
+/// use ondo_gm_simulator::{check_gm_trade, build_mock_mint_transaction, simulate_as_bundle};
+///
+/// let result = check_gm_trade(&fill_transaction)?;
+/// if result.use_gm_bundle_sim {
+///     let trade_info = result.trade_info.unwrap();
+///     let mock_mint_tx = build_mock_mint_transaction(&trade_info, recent_blockhash);
+///
+///     let sim_result = simulate_as_bundle(
+///         vec![mock_mint_tx, fill_transaction],
+///         &trade_info,
+///         "https://your-jito-rpc.com",
+///     )?;
+///
+///     for change in &sim_result.taker_balance_changes {
+///         println!("{}: {} ({})", change.symbol.as_deref().unwrap_or("?"), change.change_display(), change.change);
+///     }
+/// }
+/// ```
+pub fn simulate_as_bundle(
+    transactions: Vec<Transaction>,
+    trade_info: &crate::types::GmTradeInfo,
+    rpc_url: &str,
+) -> Result<crate::types::BundleSimulationResult, GmSimulatorError> {
+    use base64::Engine;
+    use crate::types::BundleSimulationResult;
+    use crate::constants::{get_gm_token_symbol, usdc_mint};
+
+    // Encode transactions as base64
+    let encoded_txs: Vec<String> = transactions
+        .iter()
+        .map(|tx| {
+            base64::engine::general_purpose::STANDARD.encode(
+                bincode::serialize(tx).expect("Failed to serialize transaction"),
+            )
+        })
+        .collect();
+
+    // Derive the taker's token accounts for pre/post balance checking
+    // For the fill transaction (second tx), we want to track:
+    // - Taker's input token account (USDC for BUY, GM for SELL)
+    // - Taker's output token account (GM for BUY, USDC for SELL)
+    let taker_usdc_ata = spl_associated_token_account::get_associated_token_address(
+        &trade_info.taker,
+        &usdc_mint(),
+    );
+    let taker_gm_ata = spl_associated_token_account::get_associated_token_address_with_program_id(
+        &trade_info.taker,
+        &trade_info.gm_token_mint,
+        &crate::constants::token_2022_program_id(),
+    );
+
+    // Build the Jito simulateBundle request with pre/post execution account configs
+    // We want post-execution accounts for the fill transaction (index 1)
+    let request_body = serde_json::json!({
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": "simulateBundle",
+        "params": [
+            {
+                "encodedTransactions": encoded_txs
+            },
+            {
+                "preExecutionAccountsConfigs": [
+                    null,  // Don't need pre for mock mint
+                    { "addresses": [taker_usdc_ata.to_string(), taker_gm_ata.to_string()] }
+                ],
+                "postExecutionAccountsConfigs": [
+                    null,  // Don't need post for mock mint
+                    { "addresses": [taker_usdc_ata.to_string(), taker_gm_ata.to_string()] }
+                ],
+                "replaceRecentBlockhash": true,
+                "skipSigVerify": true,
+                "simulationBank": {
+                    "commitment": {
+                        "commitment": "processed"
+                    }
+                }
+            }
+        ]
+    });
+
+    // Send the request
+    let client = reqwest::blocking::Client::new();
+    let response = client
+        .post(rpc_url)
+        .header("Content-Type", "application/json")
+        .json(&request_body)
+        .send()
+        .map_err(|e| GmSimulatorError::InstructionParseError(format!("HTTP request failed: {}", e)))?;
+
+    let response_text = response
+        .text()
+        .map_err(|e| GmSimulatorError::InstructionParseError(format!("Failed to read response: {}", e)))?;
+
+    let json: serde_json::Value = serde_json::from_str(&response_text)
+        .map_err(|e| GmSimulatorError::InstructionParseError(format!("Failed to parse JSON: {}", e)))?;
+
+    // Check for RPC-level errors
+    if let Some(error) = json.get("error") {
+        return Ok(BundleSimulationResult {
+            success: false,
+            error: Some(format!("RPC error: {}", error)),
+            taker_balance_changes: vec![],
+            logs: None,
+        });
+    }
+
+    // Parse the result
+    let result = json.get("result").ok_or_else(|| {
+        GmSimulatorError::InstructionParseError("Missing result in response".to_string())
+    })?;
+
+    let value = result.get("value").ok_or_else(|| {
+        GmSimulatorError::InstructionParseError("Missing value in result".to_string())
+    })?;
+
+    // Check transaction results
+    let tx_results = value
+        .get("transactionResults")
+        .and_then(|v| v.as_array())
+        .ok_or_else(|| {
+            GmSimulatorError::InstructionParseError("Missing transactionResults".to_string())
+        })?;
+
+    // Check if the fill transaction (index 1) succeeded
+    let fill_result = tx_results.get(1).ok_or_else(|| {
+        GmSimulatorError::InstructionParseError("Missing fill transaction result".to_string())
+    })?;
+
+    let fill_error = fill_result.get("err");
+    let success = fill_error.map_or(true, |v| v.is_null());
+
+    // Collect logs from the fill transaction
+    let logs = fill_result
+        .get("logs")
+        .and_then(|l| l.as_array())
+        .map(|arr| {
+            arr.iter()
+                .filter_map(|v| v.as_str().map(|s| s.to_string()))
+                .collect()
+        });
+
+    // Extract balance changes from pre/post execution accounts
+    let mut taker_balance_changes = Vec::new();
+
+    // Get pre-execution accounts for the fill tx
+    let pre_accounts = fill_result
+        .get("preExecutionAccounts")
+        .and_then(|v| v.as_array());
+
+    // Get post-execution accounts for the fill tx
+    let post_accounts = fill_result
+        .get("postExecutionAccounts")
+        .and_then(|v| v.as_array());
+
+    if let (Some(pre), Some(post)) = (pre_accounts, post_accounts) {
+        // Process USDC balance change (index 0)
+        if let (Some(pre_usdc), Some(post_usdc)) = (pre.get(0), post.get(0)) {
+            if let Some(change) = parse_token_balance_change(
+                pre_usdc,
+                post_usdc,
+                &usdc_mint(),
+                Some("USDC".to_string()),
+                &trade_info.taker,
+                &taker_usdc_ata,
+                6, // USDC has 6 decimals
+            ) {
+                taker_balance_changes.push(change);
+            }
+        }
+
+        // Process GM token balance change (index 1)
+        if let (Some(pre_gm), Some(post_gm)) = (pre.get(1), post.get(1)) {
+            if let Some(change) = parse_token_balance_change(
+                pre_gm,
+                post_gm,
+                &trade_info.gm_token_mint,
+                Some(get_gm_token_symbol(&trade_info.gm_token_mint)
+                    .unwrap_or("GM")
+                    .to_string()),
+                &trade_info.taker,
+                &taker_gm_ata,
+                9, // GM tokens have 9 decimals
+            ) {
+                taker_balance_changes.push(change);
+            }
+        }
+    }
+
+    Ok(BundleSimulationResult {
+        success,
+        error: if success {
+            None
+        } else {
+            Some(format!("Fill transaction failed: {:?}", fill_error))
+        },
+        taker_balance_changes,
+        logs,
+    })
+}
+
+/// Helper function to parse token balance change from Jito response
+fn parse_token_balance_change(
+    pre_account: &serde_json::Value,
+    post_account: &serde_json::Value,
+    mint: &solana_sdk::pubkey::Pubkey,
+    symbol: Option<String>,
+    owner: &solana_sdk::pubkey::Pubkey,
+    token_account: &solana_sdk::pubkey::Pubkey,
+    decimals: u8,
+) -> Option<crate::types::BalanceChange> {
+    // Parse pre-balance from the account data
+    let pre_balance = parse_token_account_balance(pre_account).unwrap_or(0);
+    let post_balance = parse_token_account_balance(post_account).unwrap_or(0);
+
+    let change = post_balance as i128 - pre_balance as i128;
+
+    // Only return if there was a change or we have valid data
+    if pre_balance != 0 || post_balance != 0 || change != 0 {
+        Some(crate::types::BalanceChange {
+            mint: *mint,
+            symbol,
+            owner: *owner,
+            token_account: *token_account,
+            pre_balance,
+            post_balance,
+            change,
+            decimals,
+        })
+    } else {
+        None
+    }
+}
+
+/// Parse token balance from a Jito account response
+fn parse_token_account_balance(account: &serde_json::Value) -> Option<u64> {
+    // Jito returns account data in base64 format
+    // Token account data layout: mint (32) + owner (32) + amount (8) + ...
+    use base64::Engine;
+
+    let data_str = account.get("data")?.as_array()?.get(0)?.as_str()?;
+    let data = base64::engine::general_purpose::STANDARD.decode(data_str).ok()?;
+
+    // Token account amount is at bytes 64-72 (after mint and owner)
+    if data.len() >= 72 {
+        let amount_bytes: [u8; 8] = data[64..72].try_into().ok()?;
+        Some(u64::from_le_bytes(amount_bytes))
+    } else {
+        None
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -564,105 +838,6 @@ mod tests {
             .all(|sig| sig.as_ref().iter().all(|&b| b == 0)));
     }
 
-    // ============================================================================
-    // Jito Bundle Simulation Helpers
-    // ============================================================================
-
-    /// Helper to build a Jito simulateBundle request
-    fn build_jito_simulate_request(mock_mint_base64: String, fill_base64: String) -> serde_json::Value {
-        serde_json::json!({
-            "jsonrpc": "2.0",
-            "id": 1,
-            "method": "simulateBundle",
-            "params": [
-                {
-                    "encodedTransactions": [mock_mint_base64, fill_base64]
-                },
-                {
-                    "preExecutionAccountsConfigs": [null, null],
-                    "postExecutionAccountsConfigs": [null, null],
-                    "replaceRecentBlockhash": true,
-                    "skipSigVerify": true,
-                    "simulationBank": {
-                       "commitment": {
-                          "commitment": "processed"
-                        }
-                    }
-                }
-            ]
-        })
-    }
-
-    /// Helper to print Jito bundle simulation results
-    fn print_jito_results(json: &serde_json::Value) {
-        if let Some(result) = json.get("result") {
-            if let Some(value) = result.get("value") {
-                // Check transaction results
-                if let Some(tx_results) = value.get("transactionResults").and_then(|v| v.as_array()) {
-                    // Check mock mint (first tx)
-                    if let Some(mock_mint_result) = tx_results.get(0) {
-                        if mock_mint_result.get("err").map_or(true, |v| v.is_null()) {
-                            println!("\n  ✓ Mock mint succeeded in bundle");
-                            if let Some(units) = mock_mint_result.get("unitsConsumed") {
-                                println!("    Compute units: {}", units);
-                            }
-                        } else {
-                            println!("\n  ✗ Mock mint failed: {:?}", mock_mint_result.get("err"));
-                        }
-
-                        // Show logs
-                        if let Some(logs) = mock_mint_result.get("logs").and_then(|l| l.as_array()) {
-                            println!("    Logs ({} entries):", logs.len());
-                            for log in logs.iter().take(10) {
-                                if let Some(log_str) = log.as_str() {
-                                    println!("      {}", log_str);
-                                }
-                            }
-                            if logs.len() > 10 {
-                                println!("      ... and {} more", logs.len() - 10);
-                            }
-                        }
-                    }
-
-                    // Check fill (second tx)
-                    if let Some(fill_result) = tx_results.get(1) {
-                        if fill_result.get("err").map_or(true, |v| v.is_null()) {
-                            println!("  ✓ Fill succeeded in bundle");
-                            if let Some(units) = fill_result.get("unitsConsumed") {
-                                println!("    Compute units: {}", units);
-                            }
-                        } else {
-                            println!("  ✗ Fill failed: {:?}", fill_result.get("err"));
-                        }
-
-                        // Show logs
-                        if let Some(logs) = fill_result.get("logs").and_then(|l| l.as_array()) {
-                            println!("    Logs ({} entries):", logs.len());
-                            for log in logs.iter().take(10) {
-                                if let Some(log_str) = log.as_str() {
-                                    println!("      {}", log_str);
-                                }
-                            }
-                            if logs.len() > 10 {
-                                println!("      ... and {} more", logs.len() - 10);
-                            }
-                        }
-                    }
-                }
-
-                // Show summary
-                if let Some(summary) = value.get("summary") {
-                    if let Some(failed) = summary.get("failed") {
-                        println!("\n  Bundle summary (failed): {}",
-                            serde_json::to_string_pretty(failed).unwrap_or_default());
-                    } else {
-                        println!("\n  ✓ Bundle summary: SUCCESS");
-                    }
-                }
-            }
-        }
-    }
-
     /// Comprehensive test with hardcoded transactions for both BUY and SELL scenarios.
     ///
     /// Run with: `RPC_URL=<your_rpc> cargo test test_from_scratch -- --ignored --nocapture`
@@ -802,32 +977,59 @@ mod tests {
             let mock_mint_tx = build_mock_mint_transaction(&trade_info, fresh_blockhash);
             println!("✓ Mock mint transaction built ({} instructions)", mock_mint_tx.message.instructions.len());
 
-            println!("\nSimulating bundle with Jito...");
-            use base64::Engine;
-            let mock_mint_encoded = base64::engine::general_purpose::STANDARD.encode(
-                bincode::serialize(&mock_mint_tx).expect("Failed to serialize mock mint tx"),
-            );
-            let fill_encoded = base64::engine::general_purpose::STANDARD
-                .encode(bincode::serialize(&buy_tx).expect("Failed to serialize fill tx"));
+            println!("\nSimulating bundle with Jito using simulate_as_bundle...");
+            match simulate_as_bundle(vec![mock_mint_tx, buy_tx], &trade_info, &rpc_url) {
+                Ok(sim_result) => {
+                    if sim_result.success {
+                        println!("  ✓ Bundle simulation succeeded");
+                    } else {
+                        println!("  ✗ Bundle simulation failed: {:?}", sim_result.error);
+                    }
 
-            let request_body = build_jito_simulate_request(mock_mint_encoded, fill_encoded);
-
-            let client_http = reqwest::blocking::Client::new();
-            match client_http.post(&rpc_url).header("Content-Type", "application/json").json(&request_body).send() {
-                Ok(response) => {
-                    match response.text() {
-                        Ok(text) => {
-                            match serde_json::from_str::<serde_json::Value>(&text) {
-                                Ok(json) => {
-                                    print_jito_results(&json);
-                                }
-                                Err(e) => println!("  ✗ Failed to parse JSON response: {:?}", e),
-                            }
+                    // Print taker balance changes
+                    println!("\n  Taker Balance Changes:");
+                    if sim_result.taker_balance_changes.is_empty() {
+                        println!("    (no balance changes detected)");
+                    } else {
+                        for change in &sim_result.taker_balance_changes {
+                            let symbol = change.symbol.as_deref().unwrap_or("?");
+                            let sign = if change.change >= 0 { "+" } else { "" };
+                            println!(
+                                "    {} {}: {}{:.6} (raw: {}{})",
+                                change.token_account,
+                                symbol,
+                                sign,
+                                change.change_display(),
+                                sign,
+                                change.change
+                            );
+                            println!(
+                                "      Pre-balance:  {} ({:.6} {})",
+                                change.pre_balance,
+                                change.pre_balance as f64 / 10f64.powi(change.decimals as i32),
+                                symbol
+                            );
+                            println!(
+                                "      Post-balance: {} ({:.6} {})",
+                                change.post_balance,
+                                change.post_balance as f64 / 10f64.powi(change.decimals as i32),
+                                symbol
+                            );
                         }
-                        Err(e) => println!("  ✗ Failed to read response text: {:?}", e),
+                    }
+
+                    // Print logs if available
+                    if let Some(logs) = &sim_result.logs {
+                        println!("\n    Logs ({} entries):", logs.len());
+                        for log in logs.iter().take(10) {
+                            println!("      {}", log);
+                        }
+                        if logs.len() > 10 {
+                            println!("      ... and {} more", logs.len() - 10);
+                        }
                     }
                 }
-                Err(e) => println!("  ✗ HTTP request failed: {:?}", e),
+                Err(e) => println!("  ✗ simulate_as_bundle failed: {:?}", e),
             }
         } else {
             panic!("BUY transaction not identified as requiring bundle simulation");
@@ -1211,54 +1413,65 @@ mod tests {
                 Transaction::new_unsigned(msg)
             };
 
-            // Use Jito bundle simulation
-            println!("\n  Using Jito bundle simulation (state persists between transactions)");
+            // Use Jito bundle simulation via simulate_as_bundle
+            println!("\n  Using Jito bundle simulation via simulate_as_bundle...");
 
-            // Encode transactions as base64 for Jito API
-            use base64::Engine;
-            let mock_mint_encoded = base64::engine::general_purpose::STANDARD.encode(
-                bincode::serialize(&mock_mint_tx_fresh).expect("Failed to serialize mock mint tx"),
-            );
-            let fill_encoded = base64::engine::general_purpose::STANDARD
-                .encode(bincode::serialize(&original_tx_fresh).expect("Failed to serialize fill tx"));
+            match simulate_as_bundle(
+                vec![mock_mint_tx_fresh, original_tx_fresh],
+                &trade_info,
+                &rpc_url,
+            ) {
+                Ok(sim_result) => {
+                    if sim_result.success {
+                        println!("  ✓ Bundle simulation succeeded");
+                    } else {
+                        println!("  ✗ Bundle simulation failed: {:?}", sim_result.error);
+                    }
 
-            let request_body = build_jito_simulate_request(mock_mint_encoded, fill_encoded);
-
-            println!("  Sending bundle simulation request...");
-
-            let client_http = reqwest::blocking::Client::new();
-            match client_http
-                .post(&rpc_url)
-                .header("Content-Type", "application/json")
-                .json(&request_body)
-                .send()
-            {
-                Ok(response) => {
-                    let status = response.status();
-                    println!("  HTTP Status: {}", status);
-
-                    match response.text() {
-                        Ok(text) => {
-                            match serde_json::from_str::<serde_json::Value>(&text) {
-                                Ok(json) => {
-                                    print_jito_results(&json);
-
-                                    if let Some(error) = json.get("error") {
-                                        println!("  ✗ Jito RPC error: {}", error);
-                                    }
-                                }
-                                Err(e) => {
-                                    println!("  ✗ Failed to parse JSON response: {:?}", e);
-                                    println!("  Response text: {}", text);
-                                }
-                            }
+                    // Print taker balance changes
+                    println!("\n  Taker Balance Changes:");
+                    if sim_result.taker_balance_changes.is_empty() {
+                        println!("    (no balance changes detected)");
+                    } else {
+                        for change in &sim_result.taker_balance_changes {
+                            let symbol = change.symbol.as_deref().unwrap_or("?");
+                            let sign = if change.change >= 0 { "+" } else { "" };
+                            println!(
+                                "    {} {}: {}{:.6} (raw: {}{})",
+                                change.token_account,
+                                symbol,
+                                sign,
+                                change.change_display(),
+                                sign,
+                                change.change
+                            );
+                            println!(
+                                "      Pre-balance:  {} ({:.6} {})",
+                                change.pre_balance,
+                                change.pre_balance as f64 / 10f64.powi(change.decimals as i32),
+                                symbol
+                            );
+                            println!(
+                                "      Post-balance: {} ({:.6} {})",
+                                change.post_balance,
+                                change.post_balance as f64 / 10f64.powi(change.decimals as i32),
+                                symbol
+                            );
                         }
-                        Err(e) => println!("  ✗ Failed to read response text: {:?}", e),
+                    }
+
+                    // Print logs if available
+                    if let Some(logs) = &sim_result.logs {
+                        println!("\n    Logs ({} entries):", logs.len());
+                        for log in logs.iter().take(10) {
+                            println!("      {}", log);
+                        }
+                        if logs.len() > 10 {
+                            println!("      ... and {} more", logs.len() - 10);
+                        }
                     }
                 }
-                Err(e) => {
-                    println!("  ✗ HTTP request failed: {:?}", e);
-                }
+                Err(e) => println!("  ✗ simulate_as_bundle failed: {:?}", e),
             }
 
             println!("\n{}", "=".repeat(80));
@@ -1266,7 +1479,7 @@ mod tests {
             println!("  • Transaction fetched from mainnet");
             println!("  • GM trade detection working properly");
             println!("  • Mock mint transaction built");
-            println!("  • Bundle simulation attempted");
+            println!("  • Bundle simulation completed with balance changes");
             println!("{}", "=".repeat(80));
         } else {
             // This is a SELL transaction or non-GM trade - no bundle simulation needed

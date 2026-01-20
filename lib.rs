@@ -104,6 +104,6 @@ pub use mint_instruction::{
 pub use simulator::{
     build_mock_mint_instruction, build_mock_mint_instruction_to_ata, build_mock_mint_transaction,
     check_gm_trade, check_gm_trade_message, check_gm_trade_versioned,
-    check_gm_trade_versioned_message, maybe_build_mock_mint,
+    check_gm_trade_versioned_message, maybe_build_mock_mint, simulate_as_bundle,
 };
-pub use types::{GmCheckResult, GmSimulatorError, GmTradeInfo};
+pub use types::{BalanceChange, BundleSimulationResult, GmCheckResult, GmSimulatorError, GmTradeInfo};

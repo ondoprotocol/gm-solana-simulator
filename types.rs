@@ -76,3 +76,44 @@ impl GmCheckResult {
         }
     }
 }
+
+/// Represents a balance change for a token account
+#[derive(Debug, Clone)]
+pub struct BalanceChange {
+    /// The token mint address
+    pub mint: Pubkey,
+    /// The token symbol (if known)
+    pub symbol: Option<String>,
+    /// The account owner
+    pub owner: Pubkey,
+    /// The token account address
+    pub token_account: Pubkey,
+    /// Balance before the transaction (in base units)
+    pub pre_balance: u64,
+    /// Balance after the transaction (in base units)
+    pub post_balance: u64,
+    /// The change amount (positive = received, negative = sent)
+    pub change: i128,
+    /// Decimals for display
+    pub decimals: u8,
+}
+
+impl BalanceChange {
+    /// Get the change as a human-readable amount
+    pub fn change_display(&self) -> f64 {
+        self.change as f64 / 10f64.powi(self.decimals as i32)
+    }
+}
+
+/// Result of a bundle simulation
+#[derive(Debug, Clone)]
+pub struct BundleSimulationResult {
+    /// Whether the simulation succeeded
+    pub success: bool,
+    /// Error message if simulation failed
+    pub error: Option<String>,
+    /// Balance changes for the taker from the fill transaction
+    pub taker_balance_changes: Vec<BalanceChange>,
+    /// Raw simulation logs (optional)
+    pub logs: Option<Vec<String>>,
+}
