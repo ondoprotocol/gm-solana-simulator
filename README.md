@@ -195,6 +195,7 @@ The mock mint provides the GM tokens that the fill instruction needs.
 
 ### Authorized Solvers
 ```
+AMJ81TnD4EWftmVPxppiEPsSFbmfYAvvLkUaNDXuR7JH
 DSqMPMsMAbEJVNuPKv1ZFdzt6YvJaDPDddfeW7ajtqds
 2Cq2RNFFxxPXL7teNQAji1beA2vFbBDYW5BGPBFvoN9m
 9BB7Tt5uE5VdRsxA5XRqrjwNaq8XtgAUQW8czA6ymUPG

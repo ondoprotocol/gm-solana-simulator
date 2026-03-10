@@ -29,10 +29,10 @@
 //!     match check_gm_trade(tx) {
 //!         Ok(result) if result.use_gm_bundle_sim => {
 //!             let trade_info = result.trade_info.unwrap();
-//!             
+//!
 //!             // Build mock mint transaction
 //!             let mock_mint_tx = build_mock_mint_transaction(&trade_info, recent_blockhash);
-//!             
+//!
 //!             // Simulate as bundle: [mock_mint_tx, original_tx]
 //!             simulate_bundle(vec![mock_mint_tx, tx.clone()])
 //!         }
@@ -65,6 +65,7 @@
 //! ## Authorized Solvers
 //!
 //! Only these three solver addresses are authorized:
+//! - `AMJ81TnD4EWftmVPxppiEPsSFbmfYAvvLkUaNDXuR7JH`
 //! - `DSqMPMsMAbEJVNuPKv1ZFdzt6YvJaDPDddfeW7ajtqds`
 //! - `2Cq2RNFFxxPXL7teNQAji1beA2vFbBDYW5BGPBFvoN9m`
 //! - `9BB7Tt5uE5VdRsxA5XRqrjwNaq8XtgAUQW8czA6ymUPG`
@@ -92,10 +93,10 @@ pub mod types;
 
 // Re-export main public API
 pub use constants::{
-    get_gm_token_symbol, is_authorized_solver, is_gm_token, jupiter_order_engine_program_id,
-    ondo_gm_program_id, admin_minter, token_2022_program_id, usdc_mint,
-    AUTHORIZED_SOLVERS, GM_TOKENS, JUPITER_ORDER_ENGINE_PROGRAM_ID, ONDO_GM_PROGRAM_ID,
-    ADMIN_MINTER, TOKEN_2022_PROGRAM_ID, USDC_MINT,
+    admin_minter, get_gm_token_symbol, is_authorized_solver, is_gm_token,
+    jupiter_order_engine_program_id, ondo_gm_program_id, token_2022_program_id, usdc_mint,
+    ADMIN_MINTER, AUTHORIZED_SOLVERS, GM_TOKENS, JUPITER_ORDER_ENGINE_PROGRAM_ID,
+    ONDO_GM_PROGRAM_ID, TOKEN_2022_PROGRAM_ID, USDC_MINT,
 };
 pub use discriminator::instruction_discriminator;
 pub use mint_instruction::{
@@ -106,4 +107,6 @@ pub use simulator::{
     check_gm_trade, check_gm_trade_message, check_gm_trade_versioned,
     check_gm_trade_versioned_message, maybe_build_mock_mint, simulate_as_bundle,
 };
-pub use types::{BalanceChange, BundleSimulationResult, GmCheckResult, GmSimulatorError, GmTradeInfo};
+pub use types::{
+    BalanceChange, BundleSimulationResult, GmCheckResult, GmSimulatorError, GmTradeInfo,
+};
