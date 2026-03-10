@@ -25,7 +25,8 @@ pub const SPL_TOKEN_PROGRAM_ID: &str = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ
 pub const TOKEN_2022_PROGRAM_ID: &str = "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb";
 
 /// Authorized Ondo GM Solver addresses
-pub const AUTHORIZED_SOLVERS: [&str; 3] = [
+pub const AUTHORIZED_SOLVERS: [&str; 4] = [
+    "AMJ81TnD4EWftmVPxppiEPsSFbmfYAvvLkUaNDXuR7JH",
     "DSqMPMsMAbEJVNuPKv1ZFdzt6YvJaDPDddfeW7ajtqds",
     "2Cq2RNFFxxPXL7teNQAji1beA2vFbBDYW5BGPBFvoN9m",
     "9BB7Tt5uE5VdRsxA5XRqrjwNaq8XtgAUQW8czA6ymUPG",

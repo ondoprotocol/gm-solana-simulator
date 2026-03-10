@@ -18,7 +18,6 @@ use solana_sdk::{
 use solana_transaction_status::UiTransactionEncoding;
 use std::str::FromStr;
 
-
 /// Helper function to fetch a transaction and build the mock mint instruction
 fn get_mint_instruction_from_fill(
     client: &RpcClient,
@@ -75,7 +74,10 @@ fn get_mint_instruction_from_fill(
 /// The signature should be updated to a recent GM fill transaction for the test to pass.
 #[test]
 fn test_simulate_mock_mint_from_fill() {
-    let client = RpcClient::new_with_commitment("https://api.mainnet-beta.solana.com", CommitmentConfig::confirmed());
+    let client = RpcClient::new_with_commitment(
+        "https://api.mainnet-beta.solana.com",
+        CommitmentConfig::confirmed(),
+    );
 
     // Replace with an actual fill transaction signature
     // This should be a Jupiter RFQ fill where an authorized solver is the maker
@@ -171,7 +173,7 @@ fn test_check_gm_trade_and_build_mock_mint() {
     };
 
     // Create a mock Jupiter fill instruction
-    let solver = Pubkey::from_str("DSqMPMsMAbEJVNuPKv1ZFdzt6YvJaDPDddfeW7ajtqds").unwrap();
+    let solver = Pubkey::from_str("AMJ81TnD4EWftmVPxppiEPsSFbmfYAvvLkUaNDXuR7JH").unwrap();
     let user = Pubkey::new_unique();
     let usdc = usdc_mint();
     let aapl = Pubkey::from_str("123mYEnRLM2LLYsJW3K6oyYh8uP1fngj732iG638ondo").unwrap();
