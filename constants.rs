@@ -34,7 +34,7 @@ pub const AUTHORIZED_SOLVERS: [&str; 4] = [
 
 /// All Ondo GM token mint addresses (mainnet)
 /// Format: (symbol, mint_address)
-pub const GM_TOKENS: [(&str, &str); 260] = [
+pub const GM_TOKENS: [(&str, &str); 261] = [
     ("AALon", "9wYZetvT8J2ptfsRca5gzLBGvcUug38mp9yT3xaondo"),
     ("AAPLon", "123mYEnRLM2LLYsJW3K6oyYh8uP1fngj732iG638ondo"),
     ("ABBVon", "MFerpBVGKZh2jXN7cbJdXRXQTp6j6pbSnSZrfWrondo"),
@@ -285,6 +285,7 @@ pub const GM_TOKENS: [(&str, &str); 260] = [
     ("SHYon", "EEy57xbaLcUrN1HXj2vz8VWxeWFK1eZQZo4aWbrondo"),
     ("SNDKon", "EJmUVvDqAdfH5zEohkdS4234bi3c6iunqEMobjmondo"),
     ("SOXXon", "EN5pHc1LccUSojxb7kkyQi7v7iJN5RpDq6qz3DHondo"),
+    ("SPCXon", "wzAyQTorWyoVXuJKj2x8EqKEGJpS13z6EWE9z5Aondo"),
     ("STXon", "EXtprP1wzrNo2bByrU9JyzqEg2hQMSCVJakeHHYondo"),
     ("UECon", "EYo8D3cLdF1CDeGms5M5VHyU52HJYinkMZ1cqvYondo"),
     ("UNGon", "Es2ipHL7qXBcLmZ4N7LP9PHBHaWaTMTAkxDwGGjondo"),
