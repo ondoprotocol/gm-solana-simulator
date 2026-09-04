@@ -34,7 +34,7 @@ pub const AUTHORIZED_SOLVERS: [&str; 4] = [
 
 /// All Ondo GM token mint addresses (mainnet)
 /// Format: (symbol, mint_address)
-pub const GM_TOKENS: [(&str, &str); 435] = [
+pub const GM_TOKENS: [(&str, &str); 443] = [
     ("AALon", "9wYZetvT8J2ptfsRca5gzLBGvcUug38mp9yT3xaondo"),
     ("AAOIon", "YuFZvc8JCN3a6BUAqwnbY4AnhuVEXD4V7QnBTmwondo"),
     ("AAONon", "nwPWRVFCbU3cdXWdJsuwomC5u459xPFdP2vYsmVondo"),
@@ -89,6 +89,7 @@ pub const GM_TOKENS: [(&str, &str); 435] = [
     ("BILIon", "14kLsQVmc64qZexYuR4XGop9y8BeMkd77pJUm1Rhondo"),
     ("BILon", "wtwpt5yJbButAhjpYhtg4uvUgCQN4LVgvLq2AxEondo"),
     ("BINCon", "mhZ69E1vDnAsQJXAwarLYSX5tmgeMajXBJ2rXAcondo"),
+    ("BIRDon", "vzTpf9YNDwYaQpTCKjQzXcPBUfheW74TuZMEyPhondo"),
     ("BKCHon", "uyWDgDZqL6x2V86i7vwJTKPuyg2u79UYaBe5yt7ondo"),
     ("BLCRon", "g3jQMP79SxnH1KisVw3C4SBpa8gSbPAocNJruJFondo"),
     ("BLKon", "5H1VpMzRuoNtRbPTRCz35ETtEUtnkt8hJuQb9v7ondo"),
@@ -200,6 +201,7 @@ pub const GM_TOKENS: [(&str, &str); 435] = [
     ("GLXYon", "CkWmEM2J79k6AjAwyQVHXteFucAL1zQrKLxLqJHondo"),
     ("GMEon", "aznKt8v32CwYMEcTcB4bGTv8DXWStCpHrcCtyy7ondo"),
     ("GNRCon", "eqzwohR9oCR6sravF4y5HyUwyvCDbnfSYqiiFrXondo"),
+    ("GOOGon", "jcA9zXHWuTuDFDDDDYJTNhersed1B5etkuB6X9Eondo"),
     ("GOOGLon", "bbahNA5vT9WJeYft8tALrH1LXWffjwqVoUbqYa1ondo"),
     ("GRABon", "m9GcsVgdjaL3KsdtSFHimnhtsUMpTHkjtwEG4Tzondo"),
     ("GRNDon", "Gc1aT3ay7FXL3qdAW7cNSXYPDsGavy7qiACuxwxondo"),
@@ -214,8 +216,10 @@ pub const GM_TOKENS: [(&str, &str); 435] = [
     ("HOODon", "BVdXGvmgi6A9oAiwWvBvP76fyTqcCNRJMM7zMN6ondo"),
     ("HPEon", "axbgKgUMscTJ34DjA69kBJuf6UYq4Pzb8B8numYondo"),
     ("HSAIon", "nagL8iWMNLZVuKFk3bUGDaHyT5ZY4bNfUzsdtGHondo"),
+    ("HTZon", "QApMAZTHvfhX2dTDzM8AMyAHVyhmPVwj4oY8Jveondo"),
     ("HUBBon", "ZmiDoowvkpp1Qgx4mmY3qtsHbNV1oE12ApKCbZNondo"),
     ("HUTon", "f7iz4BQsnjw95EUyFiBKAnKgo7oBrycfzQdtmDwondo"),
+    ("HYBDon", "71VH3YQkjqqGxzwYvGhsCsJNQYzkMo9Rg72aVxqondo"),
     ("HYGon", "c5ug15fwZRfQhhVa6LHscFY33ebVDHcVCezYpj7ondo"),
     ("HYSon", "CsN1Tyz467bSFLPGd6MJyZhPNtwDaWZtX8ixHWyondo"),
     ("IALTon", "gfKuBLive7Q35MYgxPgNx7qx524zQJ9RiDZJFZoondo"),
@@ -296,6 +300,7 @@ pub const GM_TOKENS: [(&str, &str); 435] = [
     ("MYRGon", "auLvQAhUzPuy2SQBSq2T6AofPGNkR4nZ83P8pjuondo"),
     ("NATon", "mmy8WbFRNrjoDsPGqpYmzQAVu7PfGhMCdSRLxZLondo"),
     ("NBISon", "DiRshqNDE68bWbGdLHm1GwQ76MvWQG3af6w1NdQondo"),
+    ("NEARon", "bD6TafGhPo8NaeKEyge1DrZGAPB5wxK3x4fCpqjondo"),
     ("NEEon", "t7eN6cGwRMFaZvsNW2SmVwkedmHtDdrxA4ycNE5ondo"),
     ("NEMon", "Dig28Tf1ufhCBAsjTmFkXCgcNgMqDMYj5A2rDQmondo"),
     ("NETon", "ZtAY65FCh3YB9H1wkbjRxxY5nXt9VfuTTz3Mzbuondo"),
@@ -367,6 +372,7 @@ pub const GM_TOKENS: [(&str, &str); 435] = [
     ("RKLBon", "E9VQY3VnrpVSekFByzRmfeK1kxgM3UiKCoVVbdUondo"),
     ("RMBSon", "jjnSEAsi8UbCez7x9XCbWntLWRHBdc2tWSdC3uoondo"),
     ("ROKon", "e83tWWrVsVk1hRGNz5BCwNr9TMBNWixmoUhWgYcondo"),
+    ("RXRXon", "q16ZLSbANUhpcq15pRUXRxNFfEqgpde9mSBwRcyondo"),
     ("RTXon", "12BvLZtzjdssAycxPeBQUjukhmgQpULAvy6SroYdondo"),
     ("SAPon", "bjbrNi96mXAzgvxSuGJ2SRJ5U4N8agbG7wUAKAjondo"),
     ("SATAon", "vZVGEJfSM1hS4XdFVAZL2Fr1cbPzJty9vWyax68ondo"),
@@ -438,6 +444,7 @@ pub const GM_TOKENS: [(&str, &str); 435] = [
     ("URNMon", "hieZTEZNBU67bMGULK9hWCB9h5jBPKdpRWiXpwkondo"),
     ("USARon", "aA1dRckexLmQyppFoWmjKDFjrNFUsZeGzZ7L5xpondo"),
     ("USFRon", "o6U1Sm6Vd7EofMyCrL28mrp2QLzgYGgjveHiEQ5ondo"),
+    ("USHYon", "aau4XCAZR6p9uC4vgdHdh4ip3oW5pr5PrNs3FJ8ondo"),
     ("USOon", "rpydAzWdCy85HEmoQkH5PVxYtDYQWjmLxgHHadxondo"),
     ("UUUUon", "ey16y4Bk92zmPSvbRznuv3RioAXbVreBkQxrKGDondo"),
     ("VCXon", "esgtAV7yKf7Ei3Q92VmXcEGkoqY2UqCHzZvCWhgondo"),
@@ -457,6 +464,7 @@ pub const GM_TOKENS: [(&str, &str); 435] = [
     ("VZon", "igu1coP6n3GPaWmbd8J9Z7UAyLpV254uQFFNfydondo"),
     ("WCCon", "m3m2HAANsAf2Y3BkdBixDgtrrFHnZDp4NqVh9obondo"),
     ("WDCon", "FLqH2jB2DZPJP5nnVFAakRKaNTcDZtq71Pnpp6Aondo"),
+    ("WENon", "QwJ619MuDRvT1f29RH7tMdaqsUnaSNcvBEJAZkHondo"),
     ("WFCon", "L6ZE5qCpVVSqLePz64CrwkgyWoPF9M7tB8BeFH4ondo"),
     ("WLKon", "mrNSd1y72F7Dx2Uip4vidtsJKKd8iJatTKGX6Pvondo"),
     ("WMBon", "bvjmEwQBqbMr6rnx5a74boBz6nmA1DNThujPnNAondo"),
