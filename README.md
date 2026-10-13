@@ -240,12 +240,36 @@ The `mint_gm` instruction has been verified against the actual on-chain program 
 
 **Verified values:**
 - Instruction discriminator: `[117, 223, 58, 111, 44, 36, 16, 43]`
-- Account structure: 12 accounts (see [mint_instruction.rs](mint_instruction.rs) for details)
+- Account structure: 14 accounts (see [mint_instruction.rs](mint_instruction.rs) for details)
 - PDA seeds:
   - `authority_role_account`: `[b"MinterRoleGMToken", minter]`
   - `oracle_sanity_check`: `[b"sanity_check", mint]`
+  - `token_limit`: `[b"token", mint]`
   - `mint_authority`: `[b"mint_authority"]`
   - `usdon_manager_state`: `[b"usdon_manager"]`
+  - `gmtoken_manager`: `[b"gmtoken_manager"]`
+
+### GM Program Upgrade Compatibility
+
+The GM program upgrade inserts `token_limit` and `gmtoken_manager` into the
+middle of the `mint_gm` account list. Anchor resolves accounts by position, so
+neither program version accepts the other's layout.
+
+`build_mock_mint_transaction` emits the upgraded 14-account layout. If that mock
+mint is rejected, `simulate_as_bundle` re-simulates once with the pre-upgrade
+12-account layout, so simulations keep working before and after the upgrade with
+no consumer changes. This costs one extra `simulateBundle` call per GM trade only
+while the pre-upgrade program is live. Once the upgrade is confirmed on mainnet,
+remove `build_legacy_mock_mint_gm_instruction` and the fallback.
+
+The upgraded program also rejects mints when minting is paused or the oracle
+sanity-check price is stale, so the mock mint (and therefore the simulation) can
+fail for those reasons too.
+
+Verify which layout the live program accepts with:
+```bash
+RPC_URL=<jito_rpc> cargo test test_mint_layout_fallback -- --ignored --nocapture
+```
 
 To re-verify in the future:
 ```bash
