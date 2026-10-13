@@ -57,7 +57,8 @@
 //! A transaction is considered a GM trade if it contains a **Jupiter Order Engine fill**
 //! instruction where:
 //! 1. The **maker** is an authorized Ondo GM solver
-//! 2. The **taker receives** a GM token (output_mint is a GM token)
+//! 2. The **taker receives** a GM or portfolio token (output_mint is in
+//!    `GM_TOKENS` or `PORTFOLIO_TOKENS`; portfolio tokens use `mint_portfolio`)
 //!
 //! The transaction may contain other instructions (e.g., ATA creates) - we search
 //! through all instructions to find the Jupiter fill.
@@ -93,14 +94,16 @@ pub mod types;
 
 // Re-export main public API
 pub use constants::{
-    admin_minter, get_gm_token_symbol, is_authorized_solver, is_gm_token,
+    admin_minter, get_gm_token_symbol, is_authorized_solver, is_gm_token, is_portfolio_token,
     jupiter_order_engine_program_id, ondo_gm_program_id, token_2022_program_id, usdc_mint,
     ADMIN_MINTER, AUTHORIZED_SOLVERS, GM_TOKENS, JUPITER_ORDER_ENGINE_PROGRAM_ID,
-    ONDO_GM_PROGRAM_ID, TOKEN_2022_PROGRAM_ID, USDC_MINT,
+    ONDO_GM_PROGRAM_ID, PORTFOLIO_TOKENS, TOKEN_2022_PROGRAM_ID, USDC_MINT,
 };
 pub use discriminator::instruction_discriminator;
 pub use mint_instruction::{
-    build_mock_mint_gm_instruction, build_mock_mint_gm_instruction_with_ata, get_gm_token_ata,
+    build_mock_mint_gm_instruction, build_mock_mint_gm_instruction_with_ata,
+    build_mock_mint_portfolio_instruction, build_mock_mint_portfolio_instruction_with_ata,
+    get_gm_token_ata,
 };
 pub use simulator::{
     build_mock_mint_instruction, build_mock_mint_instruction_to_ata, build_mock_mint_transaction,

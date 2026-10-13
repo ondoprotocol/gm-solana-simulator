@@ -78,7 +78,7 @@ A transaction qualifies as a GM trade that requires bundle simulation if **ALL**
 |-----------|-------|
 | Contains Jupiter RFQ fill | Transaction contains at least one Jupiter Order Engine fill instruction |
 | Authorized maker | Maker is one of 3 authorized solvers |
-| GM token output | Taker receives a GM token |
+| GM token output | Taker receives a GM or portfolio token |
 
 **Note:** GM transactions typically include additional instructions like `createAssociatedTokenAccountIdempotent` to ensure the taker's ATA exists. The detector searches for the Jupiter fill instruction among all instructions in the transaction.
 
@@ -184,7 +184,7 @@ When simulating as a bundle, the order is critical:
 
 ```
 Bundle = [
-    Transaction 1: Mock mint_gm (mints GM tokens to solver)
+    Transaction 1: Mock mint_gm / mint_portfolio (mints tokens to solver)
     Transaction 2: Original Jupiter fill (swaps tokens with user)
 ]
 ```
@@ -231,6 +231,27 @@ The crate includes 201 GM tokens representing tokenized equities:
 | METAon | fDxs5y12E7x7jBwCKBXGqt71uJmCWsAQ3Srkte6ondo |
 | MSFTon | FRmH6iRkMr33DLG6zVLR7EM4LojBFAuq6NtFzG6ondo |
 | ... | (see constants.rs for full list) |
+
+### Portfolio Tokens
+
+`PORTFOLIO_TOKENS` lists the Ondo portfolio tokens. They trade through the
+same Jupiter RFQ flow, but the mock mint uses `mint_portfolio` (role
+`MinterRolePortfolioToken`, mint authority `["portfolio_mint_authority"]`,
+manager `["portfolio_token_manager"]`) instead of `mint_gm`.
+
+| Symbol | Mint Address |
+|--------|--------------|
+| BLKDIGon | DbHXT9hkJTF342u58LBmRcDncf5Z8MASfxzbZXqondo |
+| BLKGRWon | msyrCJA3e1VSHCCyYyhRSD7rtjx7XWgxNN9rpTFondo |
+| BLKHIon | FNSJ1MmvvSeY9FfG6QD1HvYoUVY8JvatJepCuz5ondo |
+| BRAINon | 7dX7VSxrCBxR76jzymFmV6qXA6qzV4ZW1NSUDquondo |
+| MAG7Xon | eXQSZ7uj7fe76oQvYJjfAYDFHa1sUH12XZJqxkTondo |
+| YLD5on | Ko3gyavyGKTN782B5Q9HVSn46PBKNV4JjeXwy1Zondo |
+| YLD8on | 8Mw9DketZeJ3QurjwU4MTeMsWenWoFDN8qdv38Qondo |
+
+These addresses are pre-deployment: they are the prod vanity keys paired with
+symbols the way the gm-solana deploy script assigns them. Re-verify against
+`scripts/tokenDeploys/deploys/oip-prod.json` after the prod deploy.
 
 ## Important Notes
 
@@ -293,7 +314,10 @@ is_authorized_solver(&pubkey) -> bool
 // Check if an address is a GM token mint
 is_gm_token(&pubkey) -> bool
 
-// Get symbol for a GM token
+// Check if an address is a portfolio token mint
+is_portfolio_token(&pubkey) -> bool
+
+// Get symbol for a GM or portfolio token
 get_gm_token_symbol(&pubkey) -> Option<&str>
 
 // Get GM token ATA (Token-2022)

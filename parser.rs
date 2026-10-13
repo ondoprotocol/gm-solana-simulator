@@ -6,7 +6,7 @@
 use solana_sdk::{instruction::CompiledInstruction, pubkey::Pubkey};
 
 use crate::{
-    constants::{get_gm_token_symbol, is_authorized_solver, is_gm_token},
+    constants::{get_gm_token_symbol, is_authorized_solver, is_gm_token, is_portfolio_token},
     instruction_discriminator,
     types::{GmSimulatorError, GmTradeInfo},
 };
@@ -103,8 +103,9 @@ pub fn parse_fill_for_gm_trade(
         return Err(GmSimulatorError::UnauthorizedMaker(maker));
     }
 
-    // Check 2: Is output_mint (what taker receives) a GM token?
-    if !is_gm_token(&output_mint) {
+    // Check 2: Is output_mint (what taker receives) a GM or portfolio token?
+    // Both are minted JIT by the solver, so both need bundle simulation.
+    if !is_gm_token(&output_mint) && !is_portfolio_token(&output_mint) {
         return Ok(None); // Valid Jupiter fill, but not a GM trade
     }
 

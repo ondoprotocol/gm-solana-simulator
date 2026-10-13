@@ -12,10 +12,11 @@ use solana_sdk::{
 };
 
 use crate::{
-    constants::jupiter_order_engine_program_id,
+    constants::{is_portfolio_token, jupiter_order_engine_program_id},
     mint_instruction::{
         build_legacy_mock_mint_gm_instruction, build_mock_mint_gm_instruction,
-        build_mock_mint_gm_instruction_with_ata,
+        build_mock_mint_gm_instruction_with_ata, build_mock_mint_portfolio_instruction,
+        build_mock_mint_portfolio_instruction_with_ata,
     },
     parser::{is_jupiter_fill_instruction, parse_fill_for_gm_trade},
     types::{GmCheckResult, GmSimulatorError, GmTradeInfo},
@@ -191,11 +192,7 @@ pub fn build_mock_mint_transaction(
     trade_info: &GmTradeInfo,
     recent_blockhash: Hash,
 ) -> Transaction {
-    let mint_ix = build_mock_mint_gm_instruction(
-        &trade_info.gm_token_mint,
-        &trade_info.maker, // Mint to the solver (maker)
-        trade_info.gm_token_amount,
-    );
+    let mint_ix = build_mock_mint_instruction(trade_info);
     build_mock_mint_transaction_with(trade_info, mint_ix, recent_blockhash)
 }
 
@@ -286,11 +283,17 @@ fn build_mock_mint_transaction_with(
 ///
 /// # Returns
 ///
-/// An `Instruction` that mints GM tokens to the solver's token account.
+/// An `Instruction` that mints GM tokens to the solver's token account
+/// (`mint_portfolio` for portfolio tokens, `mint_gm` otherwise).
 pub fn build_mock_mint_instruction(trade_info: &GmTradeInfo) -> Instruction {
-    build_mock_mint_gm_instruction(
+    let build = if is_portfolio_token(&trade_info.gm_token_mint) {
+        build_mock_mint_portfolio_instruction
+    } else {
+        build_mock_mint_gm_instruction
+    };
+    build(
         &trade_info.gm_token_mint,
-        &trade_info.maker,
+        &trade_info.maker, // Mint to the solver (maker)
         trade_info.gm_token_amount,
     )
 }
@@ -308,7 +311,12 @@ pub fn build_mock_mint_instruction(trade_info: &GmTradeInfo) -> Instruction {
 ///
 /// An `Instruction` that mints GM tokens to the maker's output ATA.
 pub fn build_mock_mint_instruction_to_ata(trade_info: &GmTradeInfo) -> Instruction {
-    build_mock_mint_gm_instruction_with_ata(
+    let build = if is_portfolio_token(&trade_info.gm_token_mint) {
+        build_mock_mint_portfolio_instruction_with_ata
+    } else {
+        build_mock_mint_gm_instruction_with_ata
+    };
+    build(
         &trade_info.gm_token_mint,
         &trade_info.maker_output_account,
         &trade_info.maker, // Pass maker as the destination owner
@@ -375,7 +383,8 @@ pub fn maybe_build_mock_mint(
 /// `build_mock_mint_transaction` emits the upgraded `mint_gm` account layout,
 /// which the pre-upgrade program rejects (and vice versa). If the first
 /// transaction is exactly what `build_mock_mint_transaction` produces and it
-/// fails, the bundle is re-simulated once with the pre-upgrade layout. This
+/// fails, the bundle is re-simulated once with the pre-upgrade layout (GM
+/// tokens only; portfolio tokens never had one). This
 /// costs an extra RPC call per simulation only while the old program is live.
 /// If both layouts fail, the result of the upgraded layout is returned.
 ///
@@ -437,8 +446,9 @@ pub fn simulate_as_bundle(
     // mint was rejected, retry once with the pre-upgrade layout so simulations
     // keep working whichever program version is deployed. The legacy mint is
     // only swapped in when the caller passed our unmodified mock mint, so a
-    // custom first transaction is never rewritten.
-    if mock_mint_failed(&json) {
+    // custom first transaction is never rewritten. Portfolio tokens only exist
+    // on the upgraded program, so they have no legacy layout to fall back to.
+    if mock_mint_failed(&json) && !is_portfolio_token(&trade_info.gm_token_mint) {
         if let Some(mock_mint_tx) = transactions.first() {
             let blockhash = mock_mint_tx.message.recent_blockhash;
             if *mock_mint_tx == build_mock_mint_transaction(trade_info, blockhash) {
@@ -887,6 +897,28 @@ mod tests {
         // With multiple fill instructions, we detect the first one as a GM trade
         // This is an edge case - in practice, transactions typically have one fill
         assert!(result.use_gm_bundle_sim);
+    }
+
+    #[test]
+    fn test_check_gm_trade_portfolio_buy() {
+        let maker = Pubkey::from_str("DSqMPMsMAbEJVNuPKv1ZFdzt6YvJaDPDddfeW7ajtqds").unwrap();
+        let taker = Keypair::new().pubkey();
+        let brain = Pubkey::from_str("7dX7VSxrCBxR76jzymFmV6qXA6qzV4ZW1NSUDquondo").unwrap();
+
+        let fill_ix = create_mock_jupiter_fill(&maker, &taker, &usdc_mint(), &brain, 100_000_000, 2_000_000_000);
+        let tx = Transaction::new_unsigned(Message::new(&[fill_ix], Some(&taker)));
+
+        let result = check_gm_trade(&tx).unwrap();
+        assert!(result.use_gm_bundle_sim);
+        let trade_info = result.trade_info.unwrap();
+        assert_eq!(trade_info.gm_token_symbol, "BRAINon");
+
+        // The mock mint must use mint_portfolio, not mint_gm
+        let mock_tx = build_mock_mint_transaction(&trade_info, Hash::default());
+        let mint_ix = &mock_tx.message.instructions[4];
+        assert_eq!(mint_ix.data[..8], crate::instruction_discriminator("mint_portfolio"));
+        assert_eq!(build_mock_mint_instruction(&trade_info).data[..8], crate::instruction_discriminator("mint_portfolio"));
+        assert_eq!(build_mock_mint_instruction_to_ata(&trade_info).data[..8], crate::instruction_discriminator("mint_portfolio"));
     }
 
     #[test]
