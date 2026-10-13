@@ -15,7 +15,8 @@ use crate::constants::{admin_minter, ondo_gm_program_id, token_2022_program_id};
 /// Verified from on-chain IDL at XzTT4XB8m7sLD2xi6snefSasaswsKCxx5Tifjondogm
 const MINT_GM_DISCRIMINATOR: [u8; 8] = [117, 223, 58, 111, 44, 36, 16, 43];
 
-/// Anchor discriminator for "mint_portfolio" instruction: sha256("global:mint_portfolio")[..8]
+/// Anchor discriminator for "mint_portfolio" instruction
+/// Verified against the upgraded program IDL (gm-solana `target/idl/ondo_gm.json`, 2026-10-13)
 const MINT_PORTFOLIO_DISCRIMINATOR: [u8; 8] = [203, 66, 164, 209, 77, 35, 140, 206];
 
 /// PDA seeds (verified from Ondo GM program source)
@@ -425,8 +426,7 @@ mod tests {
         assert_eq!(with_ata, ix);
     }
 
-    /// Anchor discriminators are sha256("global:<name>")[..8]; this reproduces the
-    /// on-chain-verified `mint_gm` value, so it also pins `mint_portfolio`.
+    /// Anchor discriminators are sha256("global:<name>")[..8]; both constants match the IDL.
     #[test]
     fn test_mint_discriminators() {
         use crate::instruction_discriminator;
