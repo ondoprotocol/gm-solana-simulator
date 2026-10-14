@@ -12,8 +12,12 @@ use solana_sdk::{
 };
 
 use crate::{
-    constants::jupiter_order_engine_program_id,
-    mint_instruction::{build_mock_mint_gm_instruction, build_mock_mint_gm_instruction_with_ata},
+    constants::{is_portfolio_token, jupiter_order_engine_program_id},
+    mint_instruction::{
+        build_legacy_mock_mint_gm_instruction, build_mock_mint_gm_instruction,
+        build_mock_mint_gm_instruction_with_ata, build_mock_mint_portfolio_instruction,
+        build_mock_mint_portfolio_instruction_with_ata,
+    },
     parser::{is_jupiter_fill_instruction, parse_fill_for_gm_trade},
     types::{GmCheckResult, GmSimulatorError, GmTradeInfo},
 };
@@ -188,6 +192,32 @@ pub fn build_mock_mint_transaction(
     trade_info: &GmTradeInfo,
     recent_blockhash: Hash,
 ) -> Transaction {
+    let mint_ix = build_mock_mint_instruction(trade_info);
+    build_mock_mint_transaction_with(trade_info, mint_ix, recent_blockhash)
+}
+
+/// Build the mock mint transaction with the pre-upgrade `mint_gm` account layout.
+///
+/// Only used by `simulate_as_bundle` as a fallback while the deployed GM program
+/// may still be the pre-upgrade version. Remove once the upgrade is live.
+fn build_legacy_mock_mint_transaction(
+    trade_info: &GmTradeInfo,
+    recent_blockhash: Hash,
+) -> Transaction {
+    let mint_ix = build_legacy_mock_mint_gm_instruction(
+        &trade_info.gm_token_mint,
+        &trade_info.maker,
+        trade_info.gm_token_amount,
+    );
+    build_mock_mint_transaction_with(trade_info, mint_ix, recent_blockhash)
+}
+
+/// Wrap a `mint_gm` instruction with the ATA set-up the Jupiter fill relies on.
+fn build_mock_mint_transaction_with(
+    trade_info: &GmTradeInfo,
+    mint_ix: Instruction,
+    recent_blockhash: Hash,
+) -> Transaction {
     use spl_associated_token_account::instruction::create_associated_token_account_idempotent;
 
     let token_program = crate::constants::token_2022_program_id();
@@ -227,13 +257,7 @@ pub fn build_mock_mint_transaction(
         &crate::constants::spl_token_program_id(),  // token program (SPL Token)
     );
 
-    // 5. Mint GM tokens to solver (maker)
-    let mint_ix = build_mock_mint_gm_instruction(
-        &trade_info.gm_token_mint,
-        &trade_info.maker, // Mint to the solver (maker)
-        trade_info.gm_token_amount,
-    );
-
+    // 5. Mint GM tokens to solver (maker) - `mint_ix`, supplied by the caller
     let message = Message::new_with_blockhash(
         &[
             create_taker_gm_ata_ix,
@@ -259,11 +283,17 @@ pub fn build_mock_mint_transaction(
 ///
 /// # Returns
 ///
-/// An `Instruction` that mints GM tokens to the solver's token account.
+/// An `Instruction` that mints GM tokens to the solver's token account
+/// (`mint_portfolio` for portfolio tokens, `mint_gm` otherwise).
 pub fn build_mock_mint_instruction(trade_info: &GmTradeInfo) -> Instruction {
-    build_mock_mint_gm_instruction(
+    let build = if is_portfolio_token(&trade_info.gm_token_mint) {
+        build_mock_mint_portfolio_instruction
+    } else {
+        build_mock_mint_gm_instruction
+    };
+    build(
         &trade_info.gm_token_mint,
-        &trade_info.maker,
+        &trade_info.maker, // Mint to the solver (maker)
         trade_info.gm_token_amount,
     )
 }
@@ -281,7 +311,12 @@ pub fn build_mock_mint_instruction(trade_info: &GmTradeInfo) -> Instruction {
 ///
 /// An `Instruction` that mints GM tokens to the maker's output ATA.
 pub fn build_mock_mint_instruction_to_ata(trade_info: &GmTradeInfo) -> Instruction {
-    build_mock_mint_gm_instruction_with_ata(
+    let build = if is_portfolio_token(&trade_info.gm_token_mint) {
+        build_mock_mint_portfolio_instruction_with_ata
+    } else {
+        build_mock_mint_gm_instruction_with_ata
+    };
+    build(
         &trade_info.gm_token_mint,
         &trade_info.maker_output_account,
         &trade_info.maker, // Pass maker as the destination owner
@@ -343,6 +378,16 @@ pub fn maybe_build_mock_mint(
 /// * `trade_info` - The GM trade info containing taker and token information
 /// * `rpc_url` - The Jito-enabled RPC URL to use for simulation
 ///
+/// # GM Program Upgrade Compatibility
+///
+/// `build_mock_mint_transaction` emits the upgraded `mint_gm` account layout,
+/// which the pre-upgrade program rejects (and vice versa). If the first
+/// transaction is exactly what `build_mock_mint_transaction` produces and it
+/// fails, the bundle is re-simulated once with the pre-upgrade layout (GM
+/// tokens only; portfolio tokens never had one). This
+/// costs an extra RPC call per simulation only while the old program is live.
+/// If both layouts fail, the result of the upgraded layout is returned.
+///
 /// # Returns
 ///
 /// A `BundleSimulationResult` containing:
@@ -377,19 +422,8 @@ pub fn simulate_as_bundle(
     trade_info: &crate::types::GmTradeInfo,
     rpc_url: &str,
 ) -> Result<crate::types::BundleSimulationResult, GmSimulatorError> {
-    use base64::Engine;
     use crate::types::BundleSimulationResult;
     use crate::constants::{get_gm_token_symbol, usdc_mint};
-
-    // Encode transactions as base64
-    let encoded_txs: Vec<String> = transactions
-        .iter()
-        .map(|tx| {
-            base64::engine::general_purpose::STANDARD.encode(
-                bincode::serialize(tx).expect("Failed to serialize transaction"),
-            )
-        })
-        .collect();
 
     // Derive the taker's token accounts for pre/post balance checking
     // For the fill transaction (second tx), we want to track:
@@ -404,52 +438,29 @@ pub fn simulate_as_bundle(
         &trade_info.gm_token_mint,
         &crate::constants::token_2022_program_id(),
     );
+    let tracked_accounts = [taker_usdc_ata, taker_gm_ata];
 
-    // Build the Jito simulateBundle request with pre/post execution account configs
-    // We want post-execution accounts for the fill transaction (index 1)
-    let request_body = serde_json::json!({
-        "jsonrpc": "2.0",
-        "id": 1,
-        "method": "simulateBundle",
-        "params": [
-            {
-                "encodedTransactions": encoded_txs
-            },
-            {
-                "preExecutionAccountsConfigs": [
-                    null,  // Don't need pre for mock mint
-                    { "addresses": [taker_usdc_ata.to_string(), taker_gm_ata.to_string()] }
-                ],
-                "postExecutionAccountsConfigs": [
-                    null,  // Don't need post for mock mint
-                    { "addresses": [taker_usdc_ata.to_string(), taker_gm_ata.to_string()] }
-                ],
-                "replaceRecentBlockhash": true,
-                "skipSigVerify": true,
-                "simulationBank": {
-                    "commitment": {
-                        "commitment": "processed"
-                    }
+    let mut json = request_simulate_bundle(&transactions, &tracked_accounts, rpc_url)?;
+
+    // The GM program upgrade changes the `mint_gm` account layout. If our mock
+    // mint was rejected, retry once with the pre-upgrade layout so simulations
+    // keep working whichever program version is deployed. The legacy mint is
+    // only swapped in when the caller passed our unmodified mock mint, so a
+    // custom first transaction is never rewritten. Portfolio tokens only exist
+    // on the upgraded program, so they have no legacy layout to fall back to.
+    if mock_mint_failed(&json) && !is_portfolio_token(&trade_info.gm_token_mint) {
+        if let Some(mock_mint_tx) = transactions.first() {
+            let blockhash = mock_mint_tx.message.recent_blockhash;
+            if *mock_mint_tx == build_mock_mint_transaction(trade_info, blockhash) {
+                let mut legacy_txs = transactions.clone();
+                legacy_txs[0] = build_legacy_mock_mint_transaction(trade_info, blockhash);
+                let legacy_json = request_simulate_bundle(&legacy_txs, &tracked_accounts, rpc_url)?;
+                if !mock_mint_failed(&legacy_json) {
+                    json = legacy_json;
                 }
             }
-        ]
-    });
-
-    // Send the request
-    let client = reqwest::blocking::Client::new();
-    let response = client
-        .post(rpc_url)
-        .header("Content-Type", "application/json")
-        .json(&request_body)
-        .send()
-        .map_err(|e| GmSimulatorError::InstructionParseError(format!("HTTP request failed: {}", e)))?;
-
-    let response_text = response
-        .text()
-        .map_err(|e| GmSimulatorError::InstructionParseError(format!("Failed to read response: {}", e)))?;
-
-    let json: serde_json::Value = serde_json::from_str(&response_text)
-        .map_err(|e| GmSimulatorError::InstructionParseError(format!("Failed to parse JSON: {}", e)))?;
+        }
+    }
 
     // Check for RPC-level errors
     if let Some(error) = json.get("error") {
@@ -553,6 +564,85 @@ pub fn simulate_as_bundle(
         taker_balance_changes,
         logs,
     })
+}
+
+/// Send a Jito `simulateBundle` request and return the raw JSON-RPC response.
+///
+/// Pre/post execution snapshots of `tracked_accounts` are requested for the
+/// fill transaction (index 1) only.
+fn request_simulate_bundle(
+    transactions: &[Transaction],
+    tracked_accounts: &[solana_sdk::pubkey::Pubkey],
+    rpc_url: &str,
+) -> Result<serde_json::Value, GmSimulatorError> {
+    use base64::Engine;
+
+    // Encode transactions as base64
+    let encoded_txs: Vec<String> = transactions
+        .iter()
+        .map(|tx| {
+            base64::engine::general_purpose::STANDARD.encode(
+                bincode::serialize(tx).expect("Failed to serialize transaction"),
+            )
+        })
+        .collect();
+
+    let addresses: Vec<String> = tracked_accounts.iter().map(|a| a.to_string()).collect();
+
+    // Build the Jito simulateBundle request with pre/post execution account configs
+    // We want post-execution accounts for the fill transaction (index 1)
+    let request_body = serde_json::json!({
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": "simulateBundle",
+        "params": [
+            {
+                "encodedTransactions": encoded_txs
+            },
+            {
+                "preExecutionAccountsConfigs": [
+                    null,  // Don't need pre for mock mint
+                    { "addresses": addresses }
+                ],
+                "postExecutionAccountsConfigs": [
+                    null,  // Don't need post for mock mint
+                    { "addresses": addresses }
+                ],
+                "replaceRecentBlockhash": true,
+                "skipSigVerify": true,
+                "simulationBank": {
+                    "commitment": {
+                        "commitment": "processed"
+                    }
+                }
+            }
+        ]
+    });
+
+    // Send the request
+    let client = reqwest::blocking::Client::new();
+    let response = client
+        .post(rpc_url)
+        .header("Content-Type", "application/json")
+        .json(&request_body)
+        .send()
+        .map_err(|e| GmSimulatorError::InstructionParseError(format!("HTTP request failed: {}", e)))?;
+
+    let response_text = response
+        .text()
+        .map_err(|e| GmSimulatorError::InstructionParseError(format!("Failed to read response: {}", e)))?;
+
+    serde_json::from_str(&response_text)
+        .map_err(|e| GmSimulatorError::InstructionParseError(format!("Failed to parse JSON: {}", e)))
+}
+
+/// Whether the first transaction in the bundle (the mock mint) failed.
+///
+/// When a bundle transaction fails, Jito stops executing and only returns
+/// results up to and including the failed one, with the error in `err`.
+fn mock_mint_failed(json: &serde_json::Value) -> bool {
+    json.pointer("/result/value/transactionResults/0/err")
+        .map_or(false, |err| !err.is_null())
 }
 
 /// Helper function to parse token balance change from Jito response
@@ -807,6 +897,90 @@ mod tests {
         // With multiple fill instructions, we detect the first one as a GM trade
         // This is an edge case - in practice, transactions typically have one fill
         assert!(result.use_gm_bundle_sim);
+    }
+
+    #[test]
+    fn test_check_gm_trade_portfolio_buy() {
+        let maker = Pubkey::from_str("DSqMPMsMAbEJVNuPKv1ZFdzt6YvJaDPDddfeW7ajtqds").unwrap();
+        let taker = Keypair::new().pubkey();
+        let brain = Pubkey::from_str("7dX7VSxrCBxR76jzymFmV6qXA6qzV4ZW1NSUDquondo").unwrap();
+
+        let fill_ix = create_mock_jupiter_fill(&maker, &taker, &usdc_mint(), &brain, 100_000_000, 2_000_000_000);
+        let tx = Transaction::new_unsigned(Message::new(&[fill_ix], Some(&taker)));
+
+        let result = check_gm_trade(&tx).unwrap();
+        assert!(result.use_gm_bundle_sim);
+        let trade_info = result.trade_info.unwrap();
+        assert_eq!(trade_info.gm_token_symbol, "BRAINon");
+
+        // The mock mint must use mint_portfolio, not mint_gm
+        let mock_tx = build_mock_mint_transaction(&trade_info, Hash::default());
+        let mint_ix = &mock_tx.message.instructions[4];
+        assert_eq!(mint_ix.data[..8], crate::instruction_discriminator("mint_portfolio"));
+        assert_eq!(build_mock_mint_instruction(&trade_info).data[..8], crate::instruction_discriminator("mint_portfolio"));
+        assert_eq!(build_mock_mint_instruction_to_ata(&trade_info).data[..8], crate::instruction_discriminator("mint_portfolio"));
+    }
+
+    #[test]
+    fn test_legacy_mock_mint_transaction_only_swaps_mint() {
+        let trade_info = GmTradeInfo {
+            maker: Pubkey::from_str("DSqMPMsMAbEJVNuPKv1ZFdzt6YvJaDPDddfeW7ajtqds").unwrap(),
+            taker: Pubkey::new_unique(),
+            gm_token_mint: Pubkey::from_str("123mYEnRLM2LLYsJW3K6oyYh8uP1fngj732iG638ondo").unwrap(),
+            gm_token_symbol: "AAPLon".to_string(),
+            gm_token_amount: 1_500_000_000,
+            maker_output_account: Pubkey::new_unique(),
+            expire_at: 1704067200,
+        };
+        let blockhash = Hash::new_unique();
+
+        let current = build_mock_mint_transaction(&trade_info, blockhash);
+        let legacy = build_legacy_mock_mint_transaction(&trade_info, blockhash);
+
+        // Same fee payer, blockhash and ATA set-up; only the mint_gm instruction differs
+        let mint_accounts = |tx: &Transaction| tx.message.instructions[4].accounts.len();
+        assert_eq!(legacy.message.account_keys[0], current.message.account_keys[0]);
+        assert_eq!(legacy.message.recent_blockhash, blockhash);
+        assert_eq!(legacy.message.instructions.len(), 5);
+        assert_eq!(mint_accounts(&current), 14);
+        assert_eq!(mint_accounts(&legacy), 12);
+        assert_ne!(legacy, current);
+    }
+
+    /// Response shapes captured from Jito `simulateBundle` on mainnet.
+    #[test]
+    fn test_mock_mint_failed() {
+        // Mock mint rejected: Jito stops after tx 0 and reports its error
+        let mint_failed = serde_json::json!({
+            "result": { "value": {
+                "summary": { "failed": {
+                    "error": { "TransactionFailure": [[0], "Error processing Instruction 4: custom program error: 0xbc4"] },
+                    "tx_signature": "1111111111111111111111111111111111111111111111111111111111111111"
+                }},
+                "transactionResults": [{ "err": { "InstructionError": [4, { "Custom": 3012 }] }, "logs": [] }]
+            }}
+        });
+        assert!(mock_mint_failed(&mint_failed));
+
+        // Mock mint succeeded, fill failed: not a layout problem, no fallback
+        let fill_failed = serde_json::json!({
+            "result": { "value": {
+                "transactionResults": [{ "err": null }, { "err": { "InstructionError": [1, { "Custom": 1 }] } }]
+            }}
+        });
+        assert!(!mock_mint_failed(&fill_failed));
+
+        let succeeded = serde_json::json!({
+            "result": { "value": {
+                "summary": "succeeded",
+                "transactionResults": [{ "err": null }, { "err": null }]
+            }}
+        });
+        assert!(!mock_mint_failed(&succeeded));
+
+        // RPC-level error is surfaced as-is, never retried
+        let rpc_error = serde_json::json!({ "error": { "code": -32602, "message": "bad params" } });
+        assert!(!mock_mint_failed(&rpc_error));
     }
 
     #[test]
@@ -1693,5 +1867,87 @@ mod tests {
             println!("✓ PAYLOAD FILE TEST COMPLETED (NO BUNDLE SIM NEEDED)");
             println!("{}", "=".repeat(80));
         }
+    }
+
+    /// Regression test for the `mint_gm` layout fallback against a live program.
+    ///
+    /// Run with: `RPC_URL=<jito_rpc> cargo test test_mint_layout_fallback -- --ignored --nocapture`
+    ///
+    /// Reports which layout the deployed GM program accepts, then asserts that
+    /// `simulate_as_bundle` succeeds and credits the taker either way. Passing on
+    /// both sides of the program upgrade is the zero-downtime guarantee.
+    #[test]
+    #[ignore]
+    fn test_mint_layout_fallback() {
+        use solana_client::rpc_client::RpcClient;
+        use solana_sdk::instruction::{AccountMeta, Instruction};
+        use crate::mint_instruction::get_gm_token_ata;
+
+        let rpc_url = std::env::var("RPC_URL").expect("RPC_URL must be a Jito-enabled RPC");
+        let blockhash = RpcClient::new(rpc_url.clone())
+            .get_latest_blockhash()
+            .expect("Failed to get blockhash");
+
+        let taker = Pubkey::from_str("7z86y3WYofAiuxhQvYV2U6ZQMQ7jLxncuyV9U7D8PwYV").unwrap(); // Funded with USDC
+        let maker = Pubkey::from_str("DSqMPMsMAbEJVNuPKv1ZFdzt6YvJaDPDddfeW7ajtqds").unwrap(); // Real solver
+        let aapl_mint = Pubkey::from_str("123mYEnRLM2LLYsJW3K6oyYh8uP1fngj732iG638ondo").unwrap();
+        let gm_amount = 3_880_411u64;
+        let expire_at = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_secs() as i64
+            + 3600;
+
+        // BUY: 1 USDC -> AAPLon, same shape as test_from_scratch
+        let mut data = vec![0xa8, 0x60, 0xb7, 0xa3, 0x5c, 0x0a, 0x28, 0xa0];
+        data.extend_from_slice(&1_000_000u64.to_le_bytes());
+        data.extend_from_slice(&gm_amount.to_le_bytes());
+        data.extend_from_slice(&expire_at.to_le_bytes());
+        let fill_ix = Instruction {
+            program_id: jupiter_order_engine_program_id(),
+            accounts: vec![
+                AccountMeta::new(taker, true),
+                AccountMeta::new(maker, true),
+                AccountMeta::new(spl_associated_token_account::get_associated_token_address(&taker, &usdc_mint()), false),
+                AccountMeta::new(spl_associated_token_account::get_associated_token_address(&maker, &usdc_mint()), false),
+                AccountMeta::new(get_gm_token_ata(&taker, &aapl_mint), false),
+                AccountMeta::new(get_gm_token_ata(&maker, &aapl_mint), false),
+                AccountMeta::new_readonly(usdc_mint(), false),
+                AccountMeta::new_readonly(crate::constants::spl_token_program_id(), false),
+                AccountMeta::new_readonly(aapl_mint, false),
+                AccountMeta::new_readonly(crate::constants::token_2022_program_id(), false),
+                AccountMeta::new_readonly(solana_system_interface::program::id(), false),
+            ],
+            data,
+        };
+        let buy_tx = Transaction::new_unsigned(Message::new_with_blockhash(&[fill_ix], Some(&taker), &blockhash));
+
+        let trade_info = check_gm_trade(&buy_tx)
+            .expect("Failed to check GM trade")
+            .trade_info
+            .expect("Expected a GM BUY trade");
+        let mock_mint_tx = build_mock_mint_transaction(&trade_info, blockhash);
+
+        // Probe the upgraded layout on its own so the output records which program is live
+        let tracked = [get_gm_token_ata(&taker, &aapl_mint)];
+        let probe = request_simulate_bundle(&[mock_mint_tx.clone(), buy_tx.clone()], &tracked, &rpc_url)
+            .expect("simulateBundle request failed");
+        if mock_mint_failed(&probe) {
+            println!("Deployed GM program: PRE-upgrade (upgraded layout rejected, fallback required)");
+        } else {
+            println!("Deployed GM program: POST-upgrade (upgraded layout accepted)");
+        }
+
+        let result = simulate_as_bundle(vec![mock_mint_tx, buy_tx], &trade_info, &rpc_url)
+            .expect("simulate_as_bundle errored");
+        assert!(result.success, "Bundle simulation failed: {:?}", result.error);
+
+        let gm_change = result
+            .taker_balance_changes
+            .iter()
+            .find(|c| c.mint == aapl_mint)
+            .expect("Missing taker GM balance change");
+        assert_eq!(gm_change.change, gm_amount as i128);
+        println!("✓ Taker received {} AAPLon base units", gm_change.change);
     }
 }

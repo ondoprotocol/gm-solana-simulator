@@ -78,7 +78,7 @@ A transaction qualifies as a GM trade that requires bundle simulation if **ALL**
 |-----------|-------|
 | Contains Jupiter RFQ fill | Transaction contains at least one Jupiter Order Engine fill instruction |
 | Authorized maker | Maker is one of 3 authorized solvers |
-| GM token output | Taker receives a GM token |
+| GM token output | Taker receives a GM or portfolio token |
 
 **Note:** GM transactions typically include additional instructions like `createAssociatedTokenAccountIdempotent` to ensure the taker's ATA exists. The detector searches for the Jupiter fill instruction among all instructions in the transaction.
 
@@ -184,7 +184,7 @@ When simulating as a bundle, the order is critical:
 
 ```
 Bundle = [
-    Transaction 1: Mock mint_gm (mints GM tokens to solver)
+    Transaction 1: Mock mint_gm / mint_portfolio (mints tokens to solver)
     Transaction 2: Original Jupiter fill (swaps tokens with user)
 ]
 ```
@@ -232,6 +232,27 @@ The crate includes 201 GM tokens representing tokenized equities:
 | MSFTon | FRmH6iRkMr33DLG6zVLR7EM4LojBFAuq6NtFzG6ondo |
 | ... | (see constants.rs for full list) |
 
+### Portfolio Tokens
+
+`PORTFOLIO_TOKENS` lists the Ondo portfolio tokens. They trade through the
+same Jupiter RFQ flow, but the mock mint uses `mint_portfolio` (role
+`MinterRolePortfolioToken`, mint authority `["portfolio_mint_authority"]`,
+manager `["portfolio_token_manager"]`) instead of `mint_gm`.
+
+| Symbol | Mint Address |
+|--------|--------------|
+| BLKDIGon | DbHXT9hkJTF342u58LBmRcDncf5Z8MASfxzbZXqondo |
+| BLKGRWon | msyrCJA3e1VSHCCyYyhRSD7rtjx7XWgxNN9rpTFondo |
+| BLKHIon | FNSJ1MmvvSeY9FfG6QD1HvYoUVY8JvatJepCuz5ondo |
+| BRAINon | 7dX7VSxrCBxR76jzymFmV6qXA6qzV4ZW1NSUDquondo |
+| MAG7Xon | eXQSZ7uj7fe76oQvYJjfAYDFHa1sUH12XZJqxkTondo |
+| YLD5on | Ko3gyavyGKTN782B5Q9HVSn46PBKNV4JjeXwy1Zondo |
+| YLD8on | 8Mw9DketZeJ3QurjwU4MTeMsWenWoFDN8qdv38Qondo |
+
+These addresses are pre-deployment: they are the prod vanity keys paired with
+symbols the way the gm-solana deploy script assigns them. Re-verify against
+`scripts/tokenDeploys/deploys/oip-prod.json` after the prod deploy.
+
 ## Important Notes
 
 ### IDL Verification
@@ -240,12 +261,36 @@ The `mint_gm` instruction has been verified against the actual on-chain program 
 
 **Verified values:**
 - Instruction discriminator: `[117, 223, 58, 111, 44, 36, 16, 43]`
-- Account structure: 12 accounts (see [mint_instruction.rs](mint_instruction.rs) for details)
+- Account structure: 14 accounts (see [mint_instruction.rs](mint_instruction.rs) for details)
 - PDA seeds:
   - `authority_role_account`: `[b"MinterRoleGMToken", minter]`
   - `oracle_sanity_check`: `[b"sanity_check", mint]`
+  - `token_limit`: `[b"token", mint]`
   - `mint_authority`: `[b"mint_authority"]`
   - `usdon_manager_state`: `[b"usdon_manager"]`
+  - `gmtoken_manager`: `[b"gmtoken_manager"]`
+
+### GM Program Upgrade Compatibility
+
+The GM program upgrade inserts `token_limit` and `gmtoken_manager` into the
+middle of the `mint_gm` account list. Anchor resolves accounts by position, so
+neither program version accepts the other's layout.
+
+`build_mock_mint_transaction` emits the upgraded 14-account layout. If that mock
+mint is rejected, `simulate_as_bundle` re-simulates once with the pre-upgrade
+12-account layout, so simulations keep working before and after the upgrade with
+no consumer changes. This costs one extra `simulateBundle` call per GM trade only
+while the pre-upgrade program is live. Once the upgrade is confirmed on mainnet,
+remove `build_legacy_mock_mint_gm_instruction` and the fallback.
+
+The upgraded program also rejects mints when minting is paused or the oracle
+sanity-check price is stale, so the mock mint (and therefore the simulation) can
+fail for those reasons too.
+
+Verify which layout the live program accepts with:
+```bash
+RPC_URL=<jito_rpc> cargo test test_mint_layout_fallback -- --ignored --nocapture
+```
 
 To re-verify in the future:
 ```bash
@@ -269,7 +314,10 @@ is_authorized_solver(&pubkey) -> bool
 // Check if an address is a GM token mint
 is_gm_token(&pubkey) -> bool
 
-// Get symbol for a GM token
+// Check if an address is a portfolio token mint
+is_portfolio_token(&pubkey) -> bool
+
+// Get symbol for a GM or portfolio token
 get_gm_token_symbol(&pubkey) -> Option<&str>
 
 // Get GM token ATA (Token-2022)

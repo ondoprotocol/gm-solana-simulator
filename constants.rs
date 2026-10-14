@@ -25,11 +25,12 @@ pub const SPL_TOKEN_PROGRAM_ID: &str = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ
 pub const TOKEN_2022_PROGRAM_ID: &str = "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb";
 
 /// Authorized Ondo GM Solver addresses
-pub const AUTHORIZED_SOLVERS: [&str; 4] = [
+pub const AUTHORIZED_SOLVERS: [&str; 5] = [
     "AMJ81TnD4EWftmVPxppiEPsSFbmfYAvvLkUaNDXuR7JH",
     "DSqMPMsMAbEJVNuPKv1ZFdzt6YvJaDPDddfeW7ajtqds",
     "2Cq2RNFFxxPXL7teNQAji1beA2vFbBDYW5BGPBFvoN9m",
     "9BB7Tt5uE5VdRsxA5XRqrjwNaq8XtgAUQW8czA6ymUPG",
+    "7GyhUnKw2NAjTv9NmpAT3H6VXg7cFHzKA3TFnpiXEAFC",
 ];
 
 /// All Ondo GM token mint addresses (mainnet)
@@ -480,6 +481,27 @@ pub const GM_TOKENS: [(&str, &str); 443] = [
     ("YEARon", "wxPFbh4dVrTWPGHHbVVeTHH7GK2uQwnTm5C8X3Fondo"),
 ];
 
+/// All Ondo portfolio token mint addresses (mainnet)
+/// Format: (symbol, mint_address)
+///
+/// Portfolio tokens trade through the same Jupiter RFQ flow as GM tokens but are
+/// minted with the GM program's `mint_portfolio` instruction, not `mint_gm`.
+///
+/// NOTE: As of 2026-10-13 these mints are not yet deployed. The addresses are the
+/// vanity keys in gm-solana `scripts/tokenDeploys/keys`, paired with
+/// `names/oip-prod.json` the way `batch-deploy-tokens.ts` assigns them (sorted key
+/// files zipped with the names list). Re-verify against `deploys/oip-prod.json`
+/// once the prod deploy has run.
+pub const PORTFOLIO_TOKENS: [(&str, &str); 7] = [
+    ("BLKDIGon", "DbHXT9hkJTF342u58LBmRcDncf5Z8MASfxzbZXqondo"),
+    ("BLKGRWon", "msyrCJA3e1VSHCCyYyhRSD7rtjx7XWgxNN9rpTFondo"),
+    ("BLKHIon", "FNSJ1MmvvSeY9FfG6QD1HvYoUVY8JvatJepCuz5ondo"),
+    ("BRAINon", "7dX7VSxrCBxR76jzymFmV6qXA6qzV4ZW1NSUDquondo"),
+    ("MAG7Xon", "eXQSZ7uj7fe76oQvYJjfAYDFHa1sUH12XZJqxkTondo"),
+    ("YLD5on", "Ko3gyavyGKTN782B5Q9HVSn46PBKNV4JjeXwy1Zondo"),
+    ("YLD8on", "8Mw9DketZeJ3QurjwU4MTeMsWenWoFDN8qdv38Qondo"),
+];
+
 /// Get the Ondo GM program ID
 pub fn ondo_gm_program_id() -> Pubkey {
     Pubkey::from_str(ONDO_GM_PROGRAM_ID).expect("Invalid Ondo GM program ID")
@@ -522,11 +544,18 @@ pub fn is_gm_token(pubkey: &Pubkey) -> bool {
     GM_TOKENS.iter().any(|(_, addr)| *addr == pubkey_str)
 }
 
-/// Get the symbol for a GM token mint address
+/// Check if a pubkey is an Ondo portfolio token mint
+pub fn is_portfolio_token(pubkey: &Pubkey) -> bool {
+    let pubkey_str = pubkey.to_string();
+    PORTFOLIO_TOKENS.iter().any(|(_, addr)| *addr == pubkey_str)
+}
+
+/// Get the symbol for a GM or portfolio token mint address
 pub fn get_gm_token_symbol(pubkey: &Pubkey) -> Option<&'static str> {
     let pubkey_str = pubkey.to_string();
     GM_TOKENS
         .iter()
+        .chain(PORTFOLIO_TOKENS.iter())
         .find(|(_, addr)| *addr == pubkey_str)
         .map(|(symbol, _)| *symbol)
 }
@@ -552,5 +581,29 @@ mod tests {
 
         let random = Pubkey::new_unique();
         assert!(!is_gm_token(&random));
+    }
+
+    #[test]
+    fn test_is_portfolio_token() {
+        let brain = Pubkey::from_str("7dX7VSxrCBxR76jzymFmV6qXA6qzV4ZW1NSUDquondo").unwrap();
+        assert!(is_portfolio_token(&brain));
+        assert!(!is_gm_token(&brain));
+        assert_eq!(get_gm_token_symbol(&brain), Some("BRAINon"));
+
+        let aapl = Pubkey::from_str("123mYEnRLM2LLYsJW3K6oyYh8uP1fngj732iG638ondo").unwrap();
+        assert!(!is_portfolio_token(&aapl));
+    }
+
+    /// The two lists must never overlap: the mint instruction is chosen by list.
+    #[test]
+    fn test_token_lists_are_disjoint() {
+        for (symbol, addr) in PORTFOLIO_TOKENS {
+            assert!(Pubkey::from_str(addr).is_ok(), "invalid address for {}", symbol);
+            assert!(
+                !GM_TOKENS.iter().any(|(s, a)| *s == symbol || *a == addr),
+                "{} is in both GM_TOKENS and PORTFOLIO_TOKENS",
+                symbol
+            );
+        }
     }
 }
