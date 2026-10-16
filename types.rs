@@ -3,6 +3,20 @@
 use solana_sdk::pubkey::Pubkey;
 use thiserror::Error;
 
+/// Account layout of the GM program's `mint_gm` instruction.
+///
+/// The GM program upgrade inserts two accounts into the middle of the
+/// `mint_gm` account list, and Anchor resolves accounts by position, so each
+/// program version only accepts its own layout.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MintLayout {
+    /// 12 accounts, accepted by the program currently deployed on mainnet.
+    Legacy,
+    /// 14 accounts (adds `token_limit` and `gmtoken_manager`), accepted by the
+    /// upgraded program.
+    Upgraded,
+}
+
 /// Error types for the GM simulator
 #[derive(Error, Debug, Clone, PartialEq, Eq)]
 pub enum GmSimulatorError {
