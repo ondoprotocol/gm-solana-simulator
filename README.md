@@ -93,6 +93,13 @@ pub fn check_gm_trade(transaction: &Transaction) -> Result<GmCheckResult, GmSimu
 /// Build mock mint transaction for bundle simulation
 pub fn build_mock_mint_transaction(trade_info: &GmTradeInfo, recent_blockhash: Hash) -> Transaction
 
+/// Build mock mint transaction for a specific `mint_gm` layout (see GM Program Upgrade Compatibility)
+pub fn build_mock_mint_transaction_with_layout(
+    trade_info: &GmTradeInfo,
+    recent_blockhash: Hash,
+    layout: MintLayout, // Legacy | Upgraded
+) -> Transaction
+
 /// Convenience: check and build in one call
 pub fn maybe_build_mock_mint(
     transaction: &Transaction,
@@ -261,14 +268,15 @@ The `mint_gm` instruction has been verified against the actual on-chain program 
 
 **Verified values:**
 - Instruction discriminator: `[117, 223, 58, 111, 44, 36, 16, 43]`
-- Account structure: 14 accounts (see [mint_instruction.rs](mint_instruction.rs) for details)
+- Account structure: 12 accounts on the deployed program, 14 after the upgrade
+  (see [mint_instruction.rs](mint_instruction.rs) for details)
 - PDA seeds:
   - `authority_role_account`: `[b"MinterRoleGMToken", minter]`
   - `oracle_sanity_check`: `[b"sanity_check", mint]`
-  - `token_limit`: `[b"token", mint]`
+  - `token_limit`: `[b"token", mint]` (upgraded layout only)
   - `mint_authority`: `[b"mint_authority"]`
   - `usdon_manager_state`: `[b"usdon_manager"]`
-  - `gmtoken_manager`: `[b"gmtoken_manager"]`
+  - `gmtoken_manager`: `[b"gmtoken_manager"]` (upgraded layout only)
 
 ### GM Program Upgrade Compatibility
 
@@ -276,12 +284,38 @@ The GM program upgrade inserts `token_limit` and `gmtoken_manager` into the
 middle of the `mint_gm` account list. Anchor resolves accounts by position, so
 neither program version accepts the other's layout.
 
-`build_mock_mint_transaction` emits the upgraded 14-account layout. If that mock
-mint is rejected, `simulate_as_bundle` re-simulates once with the pre-upgrade
-12-account layout, so simulations keep working before and after the upgrade with
-no consumer changes. This costs one extra `simulateBundle` call per GM trade only
-while the pre-upgrade program is live. Once the upgrade is confirmed on mainnet,
-remove `build_legacy_mock_mint_gm_instruction` and the fallback.
+All public builders (`build_mock_mint_transaction`, `maybe_build_mock_mint`,
+`build_mock_mint_instruction(_to_ata)`, `build_mock_mint_gm_instruction(_with_ata)`)
+emit the 12-account layout of the program currently deployed on mainnet, so
+callers who build the mock mint and simulate it on their own nodes are
+unaffected until the upgrade.
+
+`simulate_as_bundle` additionally falls back to the upgraded 14-account layout
+if the default mock mint is rejected, so it keeps working on both sides of the
+upgrade. This costs one extra `simulateBundle` call per GM trade only once the
+upgraded program is live.
+
+Callers who simulate on their own nodes can get the same zero-downtime
+behaviour with `build_mock_mint_transaction_with_layout`: if the mock mint
+(transaction 0) fails, rebuild it with `MintLayout::Upgraded` and simulate once
+more.
+
+```rust
+let mock_mint = build_mock_mint_transaction_with_layout(&info, blockhash, MintLayout::Legacy);
+let mut result = simulate_bundle(&[mock_mint, tx.clone()]);
+if result.transaction_results[0].err.is_some() {
+    let mock_mint = build_mock_mint_transaction_with_layout(&info, blockhash, MintLayout::Upgraded);
+    result = simulate_bundle(&[mock_mint, tx.clone()]);
+}
+```
+
+**After the upgrade lands on mainnet**, release a version that makes the
+upgraded layout the default and removes the fallback. Callers who simulate on
+their own nodes without the retry above fail GM buy simulations from the
+upgrade until they deploy that release, so coordinate the timing with them.
+
+Portfolio tokens always use `mint_portfolio`, which only exists on the upgraded
+program; they are not deployed before it.
 
 The upgraded program also rejects mints when minting is paused or the oracle
 sanity-check price is stale, so the mock mint (and therefore the simulation) can

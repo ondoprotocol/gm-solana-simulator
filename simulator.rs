@@ -14,10 +14,11 @@ use solana_sdk::{
 use crate::{
     constants::{is_portfolio_token, jupiter_order_engine_program_id},
     mint_instruction::{
-        build_legacy_mock_mint_gm_instruction, build_mock_mint_gm_instruction,
-        build_mock_mint_gm_instruction_with_ata, build_mock_mint_portfolio_instruction,
-        build_mock_mint_portfolio_instruction_with_ata,
+        build_mock_mint_gm_instruction, build_mock_mint_gm_instruction_with_ata,
+        build_mock_mint_portfolio_instruction, build_mock_mint_portfolio_instruction_with_ata,
+        build_upgraded_mock_mint_gm_instruction,
     },
+    types::MintLayout,
     parser::{is_jupiter_fill_instruction, parse_fill_for_gm_trade},
     types::{GmCheckResult, GmSimulatorError, GmTradeInfo},
 };
@@ -192,33 +193,54 @@ pub fn build_mock_mint_transaction(
     trade_info: &GmTradeInfo,
     recent_blockhash: Hash,
 ) -> Transaction {
-    let mint_ix = build_mock_mint_instruction(trade_info);
-    build_mock_mint_transaction_with(trade_info, mint_ix, recent_blockhash)
+    build_mock_mint_transaction_with_layout(trade_info, recent_blockhash, MintLayout::Legacy)
 }
 
-/// Build the mock mint transaction with the pre-upgrade `mint_gm` account layout.
+/// Build the mock mint transaction for a specific GM program `mint_gm` layout.
 ///
-/// Only used by `simulate_as_bundle` as a fallback while the deployed GM program
-/// may still be the pre-upgrade version. Remove once the upgrade is live.
-fn build_legacy_mock_mint_transaction(
+/// Use this when simulating the bundle on your own nodes across the GM program
+/// upgrade: build with `MintLayout::Legacy` (what `build_mock_mint_transaction`
+/// does) and, if the mock mint transaction fails, rebuild with
+/// `MintLayout::Upgraded` and simulate once more. `simulate_as_bundle` does
+/// this for you.
+///
+/// Portfolio tokens only exist on the upgraded program, so they always get the
+/// same `mint_portfolio` transaction whichever layout is requested.
+///
+/// # Example
+///
+/// ```ignore
+/// use gm_solana_simulator::{build_mock_mint_transaction_with_layout, MintLayout};
+///
+/// let mock_mint = build_mock_mint_transaction_with_layout(&trade_info, blockhash, MintLayout::Legacy);
+/// let mut result = simulate_bundle(&[mock_mint, fill_transaction.clone()])?;
+///
+/// // Transaction 0 (the mock mint) failed: the other program version is live
+/// if result.transaction_results[0].err.is_some() {
+///     let mock_mint = build_mock_mint_transaction_with_layout(&trade_info, blockhash, MintLayout::Upgraded);
+///     result = simulate_bundle(&[mock_mint, fill_transaction])?;
+/// }
+/// ```
+pub fn build_mock_mint_transaction_with_layout(
     trade_info: &GmTradeInfo,
     recent_blockhash: Hash,
-) -> Transaction {
-    let mint_ix = build_legacy_mock_mint_gm_instruction(
-        &trade_info.gm_token_mint,
-        &trade_info.maker,
-        trade_info.gm_token_amount,
-    );
-    build_mock_mint_transaction_with(trade_info, mint_ix, recent_blockhash)
-}
-
-/// Wrap a `mint_gm` instruction with the ATA set-up the Jupiter fill relies on.
-fn build_mock_mint_transaction_with(
-    trade_info: &GmTradeInfo,
-    mint_ix: Instruction,
-    recent_blockhash: Hash,
+    layout: MintLayout,
 ) -> Transaction {
     use spl_associated_token_account::instruction::create_associated_token_account_idempotent;
+
+    // Pick the mint instruction the targeted program version accepts. Portfolio
+    // tokens fall through to `build_mock_mint_instruction`, which always builds
+    // `mint_portfolio`.
+    let mint_ix = match layout {
+        MintLayout::Upgraded if !is_portfolio_token(&trade_info.gm_token_mint) => {
+            build_upgraded_mock_mint_gm_instruction(
+                &trade_info.gm_token_mint,
+                &trade_info.maker, // Mint to the solver (maker)
+                trade_info.gm_token_amount,
+            )
+        }
+        _ => build_mock_mint_instruction(trade_info),
+    };
 
     let token_program = crate::constants::token_2022_program_id();
     let usdc_mint = crate::constants::usdc_mint();
@@ -257,7 +279,7 @@ fn build_mock_mint_transaction_with(
         &crate::constants::spl_token_program_id(),  // token program (SPL Token)
     );
 
-    // 5. Mint GM tokens to solver (maker) - `mint_ix`, supplied by the caller
+    // 5. Mint GM tokens to solver (maker) - `mint_ix`, chosen above
     let message = Message::new_with_blockhash(
         &[
             create_taker_gm_ata_ix,
@@ -380,13 +402,14 @@ pub fn maybe_build_mock_mint(
 ///
 /// # GM Program Upgrade Compatibility
 ///
-/// `build_mock_mint_transaction` emits the upgraded `mint_gm` account layout,
-/// which the pre-upgrade program rejects (and vice versa). If the first
-/// transaction is exactly what `build_mock_mint_transaction` produces and it
-/// fails, the bundle is re-simulated once with the pre-upgrade layout (GM
-/// tokens only; portfolio tokens never had one). This
-/// costs an extra RPC call per simulation only while the old program is live.
-/// If both layouts fail, the result of the upgraded layout is returned.
+/// `build_mock_mint_transaction` emits the `mint_gm` account layout of the
+/// currently deployed program, which the upgraded program rejects (and vice
+/// versa). If the first transaction is exactly what `build_mock_mint_transaction`
+/// produces and it fails, the bundle is re-simulated once with the upgraded
+/// layout (GM tokens only; portfolio tokens always use the upgraded
+/// `mint_portfolio`). This costs an extra RPC call per simulation only once the
+/// upgrade is live, until the default layout is flipped. If both layouts fail,
+/// the result of the default layout is returned.
 ///
 /// # Returns
 ///
@@ -443,20 +466,21 @@ pub fn simulate_as_bundle(
     let mut json = request_simulate_bundle(&transactions, &tracked_accounts, rpc_url)?;
 
     // The GM program upgrade changes the `mint_gm` account layout. If our mock
-    // mint was rejected, retry once with the pre-upgrade layout so simulations
-    // keep working whichever program version is deployed. The legacy mint is
+    // mint was rejected, retry once with the upgraded layout so simulations
+    // keep working whichever program version is deployed. The upgraded mint is
     // only swapped in when the caller passed our unmodified mock mint, so a
-    // custom first transaction is never rewritten. Portfolio tokens only exist
-    // on the upgraded program, so they have no legacy layout to fall back to.
+    // custom first transaction is never rewritten. Portfolio tokens already use
+    // the upgraded `mint_portfolio`, so there is nothing to fall back to.
     if mock_mint_failed(&json) && !is_portfolio_token(&trade_info.gm_token_mint) {
         if let Some(mock_mint_tx) = transactions.first() {
             let blockhash = mock_mint_tx.message.recent_blockhash;
             if *mock_mint_tx == build_mock_mint_transaction(trade_info, blockhash) {
-                let mut legacy_txs = transactions.clone();
-                legacy_txs[0] = build_legacy_mock_mint_transaction(trade_info, blockhash);
-                let legacy_json = request_simulate_bundle(&legacy_txs, &tracked_accounts, rpc_url)?;
-                if !mock_mint_failed(&legacy_json) {
-                    json = legacy_json;
+                let mut upgraded_txs = transactions.clone();
+                upgraded_txs[0] =
+                    build_mock_mint_transaction_with_layout(trade_info, blockhash, MintLayout::Upgraded);
+                let upgraded_json = request_simulate_bundle(&upgraded_txs, &tracked_accounts, rpc_url)?;
+                if !mock_mint_failed(&upgraded_json) {
+                    json = upgraded_json;
                 }
             }
         }
@@ -919,10 +943,16 @@ mod tests {
         assert_eq!(mint_ix.data[..8], crate::instruction_discriminator("mint_portfolio"));
         assert_eq!(build_mock_mint_instruction(&trade_info).data[..8], crate::instruction_discriminator("mint_portfolio"));
         assert_eq!(build_mock_mint_instruction_to_ata(&trade_info).data[..8], crate::instruction_discriminator("mint_portfolio"));
+
+        // Portfolio tokens have one layout, so the requested GM layout is irrelevant
+        assert_eq!(
+            build_mock_mint_transaction_with_layout(&trade_info, Hash::default(), MintLayout::Upgraded),
+            mock_tx,
+        );
     }
 
     #[test]
-    fn test_legacy_mock_mint_transaction_only_swaps_mint() {
+    fn test_upgraded_mock_mint_transaction_only_swaps_mint() {
         let trade_info = GmTradeInfo {
             maker: Pubkey::from_str("DSqMPMsMAbEJVNuPKv1ZFdzt6YvJaDPDddfeW7ajtqds").unwrap(),
             taker: Pubkey::new_unique(),
@@ -935,16 +965,20 @@ mod tests {
         let blockhash = Hash::new_unique();
 
         let current = build_mock_mint_transaction(&trade_info, blockhash);
-        let legacy = build_legacy_mock_mint_transaction(&trade_info, blockhash);
+        let legacy = build_mock_mint_transaction_with_layout(&trade_info, blockhash, MintLayout::Legacy);
+        let upgraded = build_mock_mint_transaction_with_layout(&trade_info, blockhash, MintLayout::Upgraded);
+
+        // The default stays the deployed layout until the upgrade is live
+        assert_eq!(current, legacy);
 
         // Same fee payer, blockhash and ATA set-up; only the mint_gm instruction differs
         let mint_accounts = |tx: &Transaction| tx.message.instructions[4].accounts.len();
-        assert_eq!(legacy.message.account_keys[0], current.message.account_keys[0]);
-        assert_eq!(legacy.message.recent_blockhash, blockhash);
-        assert_eq!(legacy.message.instructions.len(), 5);
-        assert_eq!(mint_accounts(&current), 14);
-        assert_eq!(mint_accounts(&legacy), 12);
-        assert_ne!(legacy, current);
+        assert_eq!(upgraded.message.account_keys[0], current.message.account_keys[0]);
+        assert_eq!(upgraded.message.recent_blockhash, blockhash);
+        assert_eq!(upgraded.message.instructions.len(), 5);
+        assert_eq!(mint_accounts(&current), 12);
+        assert_eq!(mint_accounts(&upgraded), 14);
+        assert_ne!(upgraded, current);
     }
 
     /// Response shapes captured from Jito `simulateBundle` on mainnet.
@@ -981,6 +1015,124 @@ mod tests {
         // RPC-level error is surfaced as-is, never retried
         let rpc_error = serde_json::json!({ "error": { "code": -32602, "message": "bad params" } });
         assert!(!mock_mint_failed(&rpc_error));
+    }
+
+    /// Serve `responses` in order from a local JSON-RPC stub and return its URL
+    /// plus a channel carrying each request body received.
+    fn spawn_rpc_stub(
+        responses: Vec<serde_json::Value>,
+    ) -> (String, std::sync::mpsc::Receiver<serde_json::Value>) {
+        use std::io::{BufRead, BufReader, Read, Write};
+
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let url = format!("http://{}", listener.local_addr().unwrap());
+        let (tx, rx) = std::sync::mpsc::channel();
+        std::thread::spawn(move || {
+            for response in responses {
+                let (mut stream, _) = listener.accept().unwrap();
+                let mut reader = BufReader::new(stream.try_clone().unwrap());
+
+                // Read the headers up to the blank line, then exactly Content-Length body bytes
+                let mut content_length = 0;
+                loop {
+                    let mut line = String::new();
+                    reader.read_line(&mut line).unwrap();
+                    if line == "\r\n" {
+                        break;
+                    }
+                    if let Some(len) = line.to_ascii_lowercase().strip_prefix("content-length:") {
+                        content_length = len.trim().parse().unwrap();
+                    }
+                }
+                let mut body = vec![0; content_length];
+                reader.read_exact(&mut body).unwrap();
+                tx.send(serde_json::from_slice(&body).unwrap()).unwrap();
+
+                let response = response.to_string();
+                write!(
+                    stream,
+                    "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
+                    response.len(),
+                    response
+                )
+                .unwrap();
+            }
+        });
+        (url, rx)
+    }
+
+    /// Exercises the `simulate_as_bundle` layout fallback against a local stub,
+    /// so the retry is covered without a Jito RPC.
+    #[test]
+    fn test_simulate_as_bundle_layout_fallback() {
+        let mint_failed = serde_json::json!({ "result": { "value": {
+            "transactionResults": [{ "err": { "InstructionError": [4, { "Custom": 3012 }] } }]
+        }}});
+        let succeeded = |tag: &str| serde_json::json!({ "result": { "value": {
+            "transactionResults": [{ "err": null }, { "err": null, "logs": [tag] }]
+        }}});
+
+        let gm_trade = GmTradeInfo {
+            maker: Pubkey::from_str("DSqMPMsMAbEJVNuPKv1ZFdzt6YvJaDPDddfeW7ajtqds").unwrap(),
+            taker: Pubkey::new_unique(),
+            gm_token_mint: Pubkey::from_str("123mYEnRLM2LLYsJW3K6oyYh8uP1fngj732iG638ondo").unwrap(),
+            gm_token_symbol: "AAPLon".to_string(),
+            gm_token_amount: 1_500_000_000,
+            maker_output_account: Pubkey::new_unique(),
+            expire_at: 1704067200,
+        };
+        let portfolio_trade = GmTradeInfo {
+            gm_token_mint: Pubkey::from_str("7dX7VSxrCBxR76jzymFmV6qXA6qzV4ZW1NSUDquondo").unwrap(),
+            gm_token_symbol: "BRAINon".to_string(),
+            ..gm_trade.clone()
+        };
+        let blockhash = Hash::new_unique();
+        let fill_tx = Transaction::new_unsigned(Message::new(&[], Some(&gm_trade.taker)));
+
+        // Run one simulation; return the result and the mint account count of
+        // each mock mint the stub received, in request order.
+        let run = |trade_info: &GmTradeInfo, mock_mint: Transaction, responses: Vec<serde_json::Value>| {
+            use base64::Engine;
+            let (url, requests) = spawn_rpc_stub(responses);
+            let result = simulate_as_bundle(vec![mock_mint, fill_tx.clone()], trade_info, &url);
+            let mint_accounts: Vec<usize> = requests
+                .try_iter()
+                .map(|body| {
+                    let encoded = body["params"][0]["encodedTransactions"][0].as_str().unwrap().to_string();
+                    let bytes = base64::engine::general_purpose::STANDARD.decode(encoded).unwrap();
+                    let tx: Transaction = bincode::deserialize(&bytes).unwrap();
+                    tx.message.instructions[4].accounts.len()
+                })
+                .collect();
+            (result, mint_accounts)
+        };
+        let default_mint = |trade_info: &GmTradeInfo| build_mock_mint_transaction(trade_info, blockhash);
+
+        // Default (deployed) layout accepted: a single request, no retry
+        let (result, mints) = run(&gm_trade, default_mint(&gm_trade), vec![succeeded("default")]);
+        assert_eq!(mints, vec![12]);
+        assert_eq!(result.unwrap().logs, Some(vec!["default".to_string()]));
+
+        // Default layout rejected: retried once with the upgraded layout, whose result wins
+        let (result, mints) = run(&gm_trade, default_mint(&gm_trade), vec![mint_failed.clone(), succeeded("upgraded")]);
+        assert_eq!(mints, vec![12, 14]);
+        let result = result.unwrap();
+        assert!(result.success);
+        assert_eq!(result.logs, Some(vec!["upgraded".to_string()]));
+
+        // Both layouts rejected: the default layout's response is surfaced
+        let (result, mints) = run(&gm_trade, default_mint(&gm_trade), vec![mint_failed.clone(), mint_failed.clone()]);
+        assert_eq!(mints, vec![12, 14]);
+        assert!(matches!(result, Err(GmSimulatorError::InstructionParseError(e)) if e.contains("Missing fill")));
+
+        // A caller-built first transaction is never rewritten
+        let custom = build_mock_mint_transaction_with_layout(&gm_trade, blockhash, MintLayout::Upgraded);
+        let (_, mints) = run(&gm_trade, custom, vec![mint_failed.clone()]);
+        assert_eq!(mints, vec![14]);
+
+        // Portfolio tokens have no other layout to retry with
+        let (_, mints) = run(&portfolio_trade, default_mint(&portfolio_trade), vec![mint_failed]);
+        assert_eq!(mints, vec![14]);
     }
 
     #[test]
@@ -1928,14 +2080,14 @@ mod tests {
             .expect("Expected a GM BUY trade");
         let mock_mint_tx = build_mock_mint_transaction(&trade_info, blockhash);
 
-        // Probe the upgraded layout on its own so the output records which program is live
+        // Probe the default layout on its own so the output records which program is live
         let tracked = [get_gm_token_ata(&taker, &aapl_mint)];
         let probe = request_simulate_bundle(&[mock_mint_tx.clone(), buy_tx.clone()], &tracked, &rpc_url)
             .expect("simulateBundle request failed");
         if mock_mint_failed(&probe) {
-            println!("Deployed GM program: PRE-upgrade (upgraded layout rejected, fallback required)");
+            println!("Deployed GM program: POST-upgrade (default layout rejected, fallback required)");
         } else {
-            println!("Deployed GM program: POST-upgrade (upgraded layout accepted)");
+            println!("Deployed GM program: PRE-upgrade (default layout accepted)");
         }
 
         let result = simulate_as_bundle(vec![mock_mint_tx, buy_tx], &trade_info, &rpc_url)
