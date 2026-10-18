@@ -379,7 +379,7 @@ mod tests {
     /// portfolio role, mint authority and manager-state PDAs.
     #[test]
     fn test_mint_portfolio_account_layout() {
-        let brain = Pubkey::from_str("7dX7VSxrCBxR76jzymFmV6qXA6qzV4ZW1NSUDquondo").unwrap();
+        let brain = Pubkey::from_str("CPcYDPoNoD42Yqvv2kKfB93RqL73vxnXEoRRgqqondo").unwrap();
         let solver = Pubkey::from_str("DSqMPMsMAbEJVNuPKv1ZFdzt6YvJaDPDddfeW7ajtqds").unwrap();
         let program_id = ondo_gm_program_id();
         let pda = |seeds: &[&[u8]]| Pubkey::find_program_address(seeds, &program_id).0;

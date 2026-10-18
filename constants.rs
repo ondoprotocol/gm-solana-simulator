@@ -487,19 +487,20 @@ pub const GM_TOKENS: [(&str, &str); 443] = [
 /// Portfolio tokens trade through the same Jupiter RFQ flow as GM tokens but are
 /// minted with the GM program's `mint_portfolio` instruction, not `mint_gm`.
 ///
-/// NOTE: As of 2026-10-13 these mints are not yet deployed. The addresses are the
-/// vanity keys in gm-solana `scripts/tokenDeploys/keys`, paired with
-/// `names/oip-prod.json` the way `batch-deploy-tokens.ts` assigns them (sorted key
-/// files zipped with the names list). Re-verify against `deploys/oip-prod.json`
+/// NOTE: As of 2026-10-18 these mints are not yet deployed. The addresses are the
+/// prod rows in gm `pkg/db/dml/token_addresses/prod/solana.csv` (gm #1626), which
+/// the backend resolves Solana portfolio mints through. They are the vanity keys in
+/// gm-solana `scripts/tokenDeploys/keys/prod`, which `batch-deploy-tokens.ts`
+/// (`STAGE=PROD`) assigns to these symbols. Re-verify against `deploys/oip-prod.json`
 /// once the prod deploy has run.
 pub const PORTFOLIO_TOKENS: [(&str, &str); 7] = [
-    ("BLKDIGon", "DbHXT9hkJTF342u58LBmRcDncf5Z8MASfxzbZXqondo"),
-    ("BLKGRWon", "msyrCJA3e1VSHCCyYyhRSD7rtjx7XWgxNN9rpTFondo"),
-    ("BLKHIon", "FNSJ1MmvvSeY9FfG6QD1HvYoUVY8JvatJepCuz5ondo"),
-    ("BRAINon", "7dX7VSxrCBxR76jzymFmV6qXA6qzV4ZW1NSUDquondo"),
-    ("MAG7Xon", "eXQSZ7uj7fe76oQvYJjfAYDFHa1sUH12XZJqxkTondo"),
-    ("YLD5on", "Ko3gyavyGKTN782B5Q9HVSn46PBKNV4JjeXwy1Zondo"),
-    ("YLD8on", "8Mw9DketZeJ3QurjwU4MTeMsWenWoFDN8qdv38Qondo"),
+    ("BLKDIGon", "MH63ApKFAH68mTP8M5ofkioN6AomPCV8Ar35dtRondo"),
+    ("BLKGRWon", "qr13tSwtPWKTgYQqf6XM8YoT5LrbFgacpVUupfEondo"),
+    ("BLKHIon", "bBrSYBsz4GncqiyGzVL4aVrhbmWY3pFHdkxshTpondo"),
+    ("BRAINon", "CPcYDPoNoD42Yqvv2kKfB93RqL73vxnXEoRRgqqondo"),
+    ("MAG7Xon", "pvC4ogQRN4QtVwEVEB4gW1WADLCFkcTNuxvYVixondo"),
+    ("YLD5on", "ofe6mC87qNGYgSr9Ps7wMVVSbUFvpcJDDxskPrqondo"),
+    ("YLD8on", "LZ6kyzBEniNHQ57cj8KAbkwtXxYbhQDKBQJo5npondo"),
 ];
 
 /// Get the Ondo GM program ID
@@ -585,7 +586,7 @@ mod tests {
 
     #[test]
     fn test_is_portfolio_token() {
-        let brain = Pubkey::from_str("7dX7VSxrCBxR76jzymFmV6qXA6qzV4ZW1NSUDquondo").unwrap();
+        let brain = Pubkey::from_str("CPcYDPoNoD42Yqvv2kKfB93RqL73vxnXEoRRgqqondo").unwrap();
         assert!(is_portfolio_token(&brain));
         assert!(!is_gm_token(&brain));
         assert_eq!(get_gm_token_symbol(&brain), Some("BRAINon"));
