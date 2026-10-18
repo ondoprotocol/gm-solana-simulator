@@ -927,7 +927,7 @@ mod tests {
     fn test_check_gm_trade_portfolio_buy() {
         let maker = Pubkey::from_str("DSqMPMsMAbEJVNuPKv1ZFdzt6YvJaDPDddfeW7ajtqds").unwrap();
         let taker = Keypair::new().pubkey();
-        let brain = Pubkey::from_str("7dX7VSxrCBxR76jzymFmV6qXA6qzV4ZW1NSUDquondo").unwrap();
+        let brain = Pubkey::from_str("CPcYDPoNoD42Yqvv2kKfB93RqL73vxnXEoRRgqqondo").unwrap();
 
         let fill_ix = create_mock_jupiter_fill(&maker, &taker, &usdc_mint(), &brain, 100_000_000, 2_000_000_000);
         let tx = Transaction::new_unsigned(Message::new(&[fill_ix], Some(&taker)));
@@ -1082,7 +1082,7 @@ mod tests {
             expire_at: 1704067200,
         };
         let portfolio_trade = GmTradeInfo {
-            gm_token_mint: Pubkey::from_str("7dX7VSxrCBxR76jzymFmV6qXA6qzV4ZW1NSUDquondo").unwrap(),
+            gm_token_mint: Pubkey::from_str("CPcYDPoNoD42Yqvv2kKfB93RqL73vxnXEoRRgqqondo").unwrap(),
             gm_token_symbol: "BRAINon".to_string(),
             ..gm_trade.clone()
         };

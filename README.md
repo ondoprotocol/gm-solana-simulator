@@ -248,16 +248,17 @@ manager `["portfolio_token_manager"]`) instead of `mint_gm`.
 
 | Symbol | Mint Address |
 |--------|--------------|
-| BLKDIGon | DbHXT9hkJTF342u58LBmRcDncf5Z8MASfxzbZXqondo |
-| BLKGRWon | msyrCJA3e1VSHCCyYyhRSD7rtjx7XWgxNN9rpTFondo |
-| BLKHIon | FNSJ1MmvvSeY9FfG6QD1HvYoUVY8JvatJepCuz5ondo |
-| BRAINon | 7dX7VSxrCBxR76jzymFmV6qXA6qzV4ZW1NSUDquondo |
-| MAG7Xon | eXQSZ7uj7fe76oQvYJjfAYDFHa1sUH12XZJqxkTondo |
-| YLD5on | Ko3gyavyGKTN782B5Q9HVSn46PBKNV4JjeXwy1Zondo |
-| YLD8on | 8Mw9DketZeJ3QurjwU4MTeMsWenWoFDN8qdv38Qondo |
+| BLKDIGon | MH63ApKFAH68mTP8M5ofkioN6AomPCV8Ar35dtRondo |
+| BLKGRWon | qr13tSwtPWKTgYQqf6XM8YoT5LrbFgacpVUupfEondo |
+| BLKHIon | bBrSYBsz4GncqiyGzVL4aVrhbmWY3pFHdkxshTpondo |
+| BRAINon | CPcYDPoNoD42Yqvv2kKfB93RqL73vxnXEoRRgqqondo |
+| MAG7Xon | pvC4ogQRN4QtVwEVEB4gW1WADLCFkcTNuxvYVixondo |
+| YLD5on | ofe6mC87qNGYgSr9Ps7wMVVSbUFvpcJDDxskPrqondo |
+| YLD8on | LZ6kyzBEniNHQ57cj8KAbkwtXxYbhQDKBQJo5npondo |
 
-These addresses are pre-deployment: they are the prod vanity keys paired with
-symbols the way the gm-solana deploy script assigns them. Re-verify against
+These addresses are pre-deployment: they are the prod rows in gm
+`pkg/db/dml/token_addresses/prod/solana.csv` (gm #1626), which the gm-solana
+deploy script assigns from its prod vanity keys. Re-verify against
 `scripts/tokenDeploys/deploys/oip-prod.json` after the prod deploy.
 
 ## Important Notes
