@@ -25,17 +25,15 @@ pub const SPL_TOKEN_PROGRAM_ID: &str = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ
 pub const TOKEN_2022_PROGRAM_ID: &str = "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb";
 
 /// Authorized Ondo GM Solver addresses
-pub const AUTHORIZED_SOLVERS: [&str; 5] = [
+pub const AUTHORIZED_SOLVERS: [&str; 3] = [
     "AMJ81TnD4EWftmVPxppiEPsSFbmfYAvvLkUaNDXuR7JH",
-    "DSqMPMsMAbEJVNuPKv1ZFdzt6YvJaDPDddfeW7ajtqds",
-    "2Cq2RNFFxxPXL7teNQAji1beA2vFbBDYW5BGPBFvoN9m",
     "9BB7Tt5uE5VdRsxA5XRqrjwNaq8XtgAUQW8czA6ymUPG",
     "7GyhUnKw2NAjTv9NmpAT3H6VXg7cFHzKA3TFnpiXEAFC",
 ];
 
 /// All Ondo GM token mint addresses (mainnet)
 /// Format: (symbol, mint_address)
-pub const GM_TOKENS: [(&str, &str); 443] = [
+pub const GM_TOKENS: [(&str, &str); 467] = [
     ("AALon", "9wYZetvT8J2ptfsRca5gzLBGvcUug38mp9yT3xaondo"),
     ("AAOIon", "YuFZvc8JCN3a6BUAqwnbY4AnhuVEXD4V7QnBTmwondo"),
     ("AAONon", "nwPWRVFCbU3cdXWdJsuwomC5u459xPFdP2vYsmVondo"),
@@ -74,6 +72,7 @@ pub const GM_TOKENS: [(&str, &str); 443] = [
     ("ARMon", "15SsCZqCsM9fZGhTmP4rdJTPT9WGZKazDSsgeQ8ondo"),
     ("ARQQon", "crakmaGKTuVRYqSBsFsuqio5CmpEQnpibDrVLbDondo"),
     ("ASMLon", "1eLZPRsn8bAKmoxsqDMH9Q2m2k7GMNp6RLSQGm8ondo"),
+    ("ASSTon", "qe2YvLAnZ2SjwQahVRPiaJPMWwemEZ9GFamxdeMondo"),
     ("ASTSon", "B6ry9goGNvVbhq7gWHzs3p6emJ1gLaMhu4By9TTondo"),
     ("ATKRon", "ZsCDHjWFyndwgbHMs4AHYwJZQMgmAn72ESQj2b5ondo"),
     ("AURon", "eGbh3V9R5ujWYwKJZAyM4Eg3sfzLhwKyr4bGbTsondo"),
@@ -91,12 +90,15 @@ pub const GM_TOKENS: [(&str, &str); 443] = [
     ("BILon", "wtwpt5yJbButAhjpYhtg4uvUgCQN4LVgvLq2AxEondo"),
     ("BINCon", "mhZ69E1vDnAsQJXAwarLYSX5tmgeMajXBJ2rXAcondo"),
     ("BIRDon", "vzTpf9YNDwYaQpTCKjQzXcPBUfheW74TuZMEyPhondo"),
+    ("BITAon", "k7Ge7hCyqrvJi2qeMKxF1Tz8M5iVWZmpyB3z68Tondo"),
     ("BKCHon", "uyWDgDZqL6x2V86i7vwJTKPuyg2u79UYaBe5yt7ondo"),
     ("BLCRon", "g3jQMP79SxnH1KisVw3C4SBpa8gSbPAocNJruJFondo"),
     ("BLKon", "5H1VpMzRuoNtRbPTRCz35ETtEUtnkt8hJuQb9v7ondo"),
     ("BLSHon", "A9PFmw9Hu8zzxDUoU351pio1E1XWBWBfWnjT9qoondo"),
     ("BMNRon", "MYXqkDYbzr7vjXAz2BapR4AiYRXzoikGirrLoRzondo"),
+    ("BMRNon", "hqoDJ7e5K31JqPgV4w9WuWVo8VbZJmbxzKuBNDBondo"),
     ("BNOon", "BAU83kqEqhyiexfAMQhZZE5KnGogSqh17fJc44Sondo"),
+    ("BNTXon", "YwZcfm1Cd5fpfK7h7KYkZBMUGG6c5NePeb2xM4Hondo"),
     ("BOTon", "b8UDyp3Yx19rcdaBUNegoojyUdhPpiPQ46bFrtQQQon"),
     ("BOTZon", "soLM6jRVdG1PdurSAQDz5qRtwWxXPM6EBvwrkBjondo"),
     ("BRHYon", "fznj92AnTcQ6mAFvt68JgLJS5pHag5uPmJ7LmSLondo"),
@@ -107,6 +109,7 @@ pub const GM_TOKENS: [(&str, &str); 443] = [
     ("BTGOon", "bgJWGuQxyoyFeXwzYZKBmoujVdatGFYPNFnv1a6ondo"),
     ("BWETon", "m7mWfvhyPikY3esNwTk8U1JRbcBijmzHgqiqx3xondo"),
     ("BZon", "doPqjCxi6UkANkvMz5fSuYGEo5PGppVpTZMeB5vondo"),
+    ("CAIon", "wRdUjREc11BwkxavdLycKR2Z5eMLyoxAsN9nRSPondo"),
     ("CAMTon", "ZcS6FuJ1nAjgwJejUsxkasM6JpEDkdowVyohBCzondo"),
     ("CAPRon", "BS8zoc6pmALQnBhBDFak6eFhgGHjpebnHzsxApgondo"),
     ("CATon", "AErxJJxGbc9cZzZoZepN62BNfg5RXns8tmEc3Zpondo"),
@@ -166,6 +169,7 @@ pub const GM_TOKENS: [(&str, &str); 443] = [
     ("ENTGon", "awCwGaVNbYJH2SyQJzgE3mB54gxa6SQEZSKZaHQondo"),
     ("EQIXon", "aheEdmuryJU8ymy8LjYheZH5i2BW1UMsfuWQKD2ondo"),
     ("EQTon", "bWrYATfytuRwGoDbpxy16aQbMbCZDv8DURuLCAhondo"),
+    ("ERASon", "YDH6FLNKUGYbanUeXgTLavXzT7Cfr1rf8feuJ1fondo"),
     ("ETNon", "BpYiU1dBXU1fdB64jbR93wHEw3Y47QeRLZvUyLQondo"),
     ("EUHYon", "teUYhoQUgqsFp9ZwYBUHfuUHdVvbNx9N8spESGqondo"),
     ("EWJon", "C6c7VcxuUYcV5YTsky5HM4PUmfwHTwsDD5DNwwPondo"),
@@ -240,6 +244,7 @@ pub const GM_TOKENS: [(&str, &str); 443] = [
     ("INDAon", "DBNwt3FoYCKQWdfzxKFNZ4mzuz4Jz1iRzFf7HFzondo"),
     ("INODon", "nTUjRdtzGCy8FXHK8w1n11pHABX6Dc7L7WSpzdBondo"),
     ("INROon", "g4kT9HEg7rN4e5ZaEGHmzpkdM8qMbsZSHJojKeCondo"),
+    ("INSMon", "WA4B7zirRCmz52ybWN1L3KkVtqjviyDnDpU81L7ondo"),
     ("INSWon", "mV5mof9x8nDirrHwT7g16MarvHbnRvz2zN2S4Cspyon"),
     ("INTCon", "cJpUMp5R7rZ6fGeLHbHhrRuJzK9mkyKDjZqNpT3ondo"),
     ("INTUon", "CozoH5HBTyyeYSQxHcWpGzd4Sq5XBaKzBzvTtN3ondo"),
@@ -314,6 +319,7 @@ pub const GM_TOKENS: [(&str, &str); 443] = [
     ("NOKon", "amE2ANm5dyG6RTkJHdtzvWcuR8ChBZCEm5Jiqwdondo"),
     ("NOWon", "G7pTVoSECz5RQWubEnTP7AC83KHUsSyoiqYR1R2ondo"),
     ("NTESon", "YeK2TdPtGLAme3Phg4pb1GBN2YxKgX5UNVyD4asondo"),
+    ("NTRAon", "e6aqDTAJ7hoPHLsZwb4mthh2ktusriQBqERnCe6ondo"),
     ("NUEon", "mvAUPvwKPW4rbbTXkqCvcZEG45XCeRHSVcLVym8ondo"),
     ("NVDAon", "gEGtLTPNQ7jcg25zTetkbmF7teoDLcrfTnQfmn2ondo"),
     ("NVMIon", "nupQ2BuCfoVeCHVLRDhTjLJanaf5cxZ81KVFqs6ondo"),
@@ -353,6 +359,7 @@ pub const GM_TOKENS: [(&str, &str); 443] = [
     ("PPLTon", "DwRtkbsaQMGAS3oMeEGYh6M5vH4X9WECsQgqHjAondo"),
     ("PRIMon", "kcc5QzXDCQ61qQ5Nbpi2RppnRSzhG1XQNXkjXwoondo"),
     ("PSQon", "qKtU9A7ij34XmtxaSzYfxCpkgAZzzFsqnUb2kW2ondo"),
+    ("PTGXon", "a2vHV6BstDDyZTkiQtEKTWrdcQNE6AAvcjj7dwMondo"),
     ("PURRon", "rsiKbHCdsvmExvDfkYWypAXFsqKz6V8XuoxbkHtondo"),
     ("PWRon", "f1yQz2fo7S24NqrsfaWDkmQ8xoa8yU72c9rEEBdondo"),
     ("PYPLon", "hM7B3UQTTR81mS27SxDDPzBbjejmo8fnpFjzgv9ondo"),
@@ -372,11 +379,13 @@ pub const GM_TOKENS: [(&str, &str); 443] = [
     ("RIVNon", "AXRsYFt7TXNQ3DcY6BkvRgPV6VsYMURyDtaeudjondo"),
     ("RKLBon", "E9VQY3VnrpVSekFByzRmfeK1kxgM3UiKCoVVbdUondo"),
     ("RMBSon", "jjnSEAsi8UbCez7x9XCbWntLWRHBdc2tWSdC3uoondo"),
+    ("ROIVon", "iBnKsRTZ5NpiwhsL3XdViUoem2RLcLfqbPndeumondo"),
     ("ROKon", "e83tWWrVsVk1hRGNz5BCwNr9TMBNWixmoUhWgYcondo"),
     ("RXRXon", "q16ZLSbANUhpcq15pRUXRxNFfEqgpde9mSBwRcyondo"),
     ("RTXon", "12BvLZtzjdssAycxPeBQUjukhmgQpULAvy6SroYdondo"),
     ("SAPon", "bjbrNi96mXAzgvxSuGJ2SRJ5U4N8agbG7wUAKAjondo"),
     ("SATAon", "vZVGEJfSM1hS4XdFVAZL2Fr1cbPzJty9vWyax68ondo"),
+    ("SATSon", "tuePqnZobDMppUTvzxiLeR56DkivaDjdnUcK1W1ondo"),
     ("SBETon", "iLDu2jjp2i3Uqc2Vm7K7GLiUj3hR4Un49MtD7c4ondo"),
     ("SBUXon", "iPFqjcZQTNMNXA4kbShbMhfAVD8yr8Uq9UtXMV6ondo"),
     ("SCCOon", "EANjzFjj3nPXHdzN5CE3Z8LLVn69Ce77FE8X4cvondo"),
@@ -432,6 +441,7 @@ pub const GM_TOKENS: [(&str, &str); 443] = [
     ("TSMon", "keybg184d4vyXeQdFqs4o99YsMg7xBthxTJ6Ky3ondo"),
     ("TTMIon", "kWmjV2XdK5tbV6kZrM8grS6EGFmuH5i5HFW3YyLondo"),
     ("TTon", "erp2t2My8UoFgyRt39EmnnSiDUwUM5aNKw5piBKondo"),
+    ("TWSTon", "U3wHHv4MXUc3W3zpSfMhSLSjopQCJXqFjkuRUSaondo"),
     ("TXNon", "81xLFvCzFaUM3KDxSHC75pXu3RPCeSeCbmGBY8aondo"),
     ("UAMYon", "nbwNoPaFYNY2c3u4iK6U59ySC2ehFrpjdpfbyLDondo"),
     ("UBERon", "KJNeFW3kk3ycPjXpC6cbuyckjeYHacc2ekhtAi5ondo"),
@@ -479,6 +489,18 @@ pub const GM_TOKENS: [(&str, &str); 443] = [
     ("XYLDon", "wCr7YFeYDWyYSebsoMY75g8c9pguGeVB3rT6kYjondo"),
     ("XYZon", "BWxe2FVciUbwrCUZQPUKiREBh5LmVa5AiUqNLAkondo"),
     ("YEARon", "wxPFbh4dVrTWPGHHbVVeTHH7GK2uQwnTm5C8X3Fondo"),
+    ("ZAPRon", "Az8xE1QxMWxm7YVfawqcpp5x4fUCgA7P78TWJSPondo"),
+    ("ZAUGon", "LZxoG2t3bXxBy3LuDKmNedspMwhGqMPkM7W69K2ondo"),
+    ("ZDEKon", "TZE6DkWMb9LbJpmbz3w8kcQhajbgCjNv6rW4acJondo"),
+    ("ZFEBon", "8xNG9FjTsaoheLy6fqRnGrpGfArchnvZHDbxmfbondo"),
+    ("ZJANon", "65ojqsRXJfZ6jsyvwYgCSJDx6eSJDF4TyKEKU8Uondo"),
+    ("ZJULon", "JoZo1z7ztGadz3XiV768VTkNrvv2962SUSwDpQ4ondo"),
+    ("ZJUNon", "HZL3NitvYh26d4MQ7Eqe7UCLZd7zqssQTixJCGxondo"),
+    ("ZMARon", "9UK3oCkkoF19bx7hiEZi52PEkNRQDL5dVoxAr6gondo"),
+    ("ZMAYon", "CrsCirE2pnFWAyYVHBKo2pfMW7HcZLC3K5xxPFMondo"),
+    ("ZNOVon", "TNwcyDng8B8MQpXP9Xt7puwLB1C3Gd3JDURUmjeondo"),
+    ("ZOCTon", "QVaBGHknDyzoL4QZSoNBPbLf7azTJD5RLEBeck9ondo"),
+    ("ZSEPon", "MrA5KLWafSN7o4xU7DKeqbGsckh2SFM9gE7kqU2ondo"),
 ];
 
 /// All Ondo portfolio token mint addresses (mainnet)
@@ -599,7 +621,11 @@ mod tests {
     #[test]
     fn test_token_lists_are_disjoint() {
         for (symbol, addr) in PORTFOLIO_TOKENS {
-            assert!(Pubkey::from_str(addr).is_ok(), "invalid address for {}", symbol);
+            assert!(
+                Pubkey::from_str(addr).is_ok(),
+                "invalid address for {}",
+                symbol
+            );
             assert!(
                 !GM_TOKENS.iter().any(|(s, a)| *s == symbol || *a == addr),
                 "{} is in both GM_TOKENS and PORTFOLIO_TOKENS",
