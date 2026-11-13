@@ -778,7 +778,7 @@ mod tests {
 
     #[test]
     fn test_check_gm_trade_buy() {
-        let solver = Pubkey::from_str("DSqMPMsMAbEJVNuPKv1ZFdzt6YvJaDPDddfeW7ajtqds").unwrap();
+        let solver = Pubkey::from_str("AMJ81TnD4EWftmVPxppiEPsSFbmfYAvvLkUaNDXuR7JH").unwrap();
         let user = Keypair::new();
         let usdc = usdc_mint();
         let aapl = Pubkey::from_str("123mYEnRLM2LLYsJW3K6oyYh8uP1fngj732iG638ondo").unwrap();
@@ -832,7 +832,7 @@ mod tests {
 
     #[test]
     fn test_check_gm_trade_not_gm_token() {
-        let solver = Pubkey::from_str("DSqMPMsMAbEJVNuPKv1ZFdzt6YvJaDPDddfeW7ajtqds").unwrap();
+        let solver = Pubkey::from_str("AMJ81TnD4EWftmVPxppiEPsSFbmfYAvvLkUaNDXuR7JH").unwrap();
         let user = Keypair::new();
         let usdc = usdc_mint();
         let random_token = Pubkey::new_unique();
@@ -857,7 +857,7 @@ mod tests {
     fn test_check_gm_trade_with_create_ata() {
         use spl_associated_token_account::instruction::create_associated_token_account_idempotent;
 
-        let solver = Pubkey::from_str("DSqMPMsMAbEJVNuPKv1ZFdzt6YvJaDPDddfeW7ajtqds").unwrap();
+        let solver = Pubkey::from_str("AMJ81TnD4EWftmVPxppiEPsSFbmfYAvvLkUaNDXuR7JH").unwrap();
         let user = Keypair::new();
         let usdc = usdc_mint();
         let aapl = Pubkey::from_str("123mYEnRLM2LLYsJW3K6oyYh8uP1fngj732iG638ondo").unwrap();
@@ -893,7 +893,7 @@ mod tests {
 
     #[test]
     fn test_check_gm_trade_multiple_fills() {
-        let solver = Pubkey::from_str("DSqMPMsMAbEJVNuPKv1ZFdzt6YvJaDPDddfeW7ajtqds").unwrap();
+        let solver = Pubkey::from_str("AMJ81TnD4EWftmVPxppiEPsSFbmfYAvvLkUaNDXuR7JH").unwrap();
         let user = Keypair::new();
         let usdc = usdc_mint();
         let aapl = Pubkey::from_str("123mYEnRLM2LLYsJW3K6oyYh8uP1fngj732iG638ondo").unwrap();
@@ -925,7 +925,7 @@ mod tests {
 
     #[test]
     fn test_check_gm_trade_portfolio_buy() {
-        let maker = Pubkey::from_str("DSqMPMsMAbEJVNuPKv1ZFdzt6YvJaDPDddfeW7ajtqds").unwrap();
+        let maker = Pubkey::from_str("AMJ81TnD4EWftmVPxppiEPsSFbmfYAvvLkUaNDXuR7JH").unwrap();
         let taker = Keypair::new().pubkey();
         let brain = Pubkey::from_str("CPcYDPoNoD42Yqvv2kKfB93RqL73vxnXEoRRgqqondo").unwrap();
 
@@ -954,7 +954,7 @@ mod tests {
     #[test]
     fn test_upgraded_mock_mint_transaction_only_swaps_mint() {
         let trade_info = GmTradeInfo {
-            maker: Pubkey::from_str("DSqMPMsMAbEJVNuPKv1ZFdzt6YvJaDPDddfeW7ajtqds").unwrap(),
+            maker: Pubkey::from_str("AMJ81TnD4EWftmVPxppiEPsSFbmfYAvvLkUaNDXuR7JH").unwrap(),
             taker: Pubkey::new_unique(),
             gm_token_mint: Pubkey::from_str("123mYEnRLM2LLYsJW3K6oyYh8uP1fngj732iG638ondo").unwrap(),
             gm_token_symbol: "AAPLon".to_string(),
@@ -1073,7 +1073,7 @@ mod tests {
         }}});
 
         let gm_trade = GmTradeInfo {
-            maker: Pubkey::from_str("DSqMPMsMAbEJVNuPKv1ZFdzt6YvJaDPDddfeW7ajtqds").unwrap(),
+            maker: Pubkey::from_str("AMJ81TnD4EWftmVPxppiEPsSFbmfYAvvLkUaNDXuR7JH").unwrap(),
             taker: Pubkey::new_unique(),
             gm_token_mint: Pubkey::from_str("123mYEnRLM2LLYsJW3K6oyYh8uP1fngj732iG638ondo").unwrap(),
             gm_token_symbol: "AAPLon".to_string(),
@@ -1137,7 +1137,7 @@ mod tests {
 
     #[test]
     fn test_build_mock_mint_transaction() {
-        let solver = Pubkey::from_str("DSqMPMsMAbEJVNuPKv1ZFdzt6YvJaDPDddfeW7ajtqds").unwrap();
+        let solver = Pubkey::from_str("AMJ81TnD4EWftmVPxppiEPsSFbmfYAvvLkUaNDXuR7JH").unwrap();
         let aapl = Pubkey::from_str("123mYEnRLM2LLYsJW3K6oyYh8uP1fngj732iG638ondo").unwrap();
 
         let trade_info = GmTradeInfo {
@@ -1204,7 +1204,7 @@ mod tests {
 
         // Common accounts
         let taker = Pubkey::from_str("7z86y3WYofAiuxhQvYV2U6ZQMQ7jLxncuyV9U7D8PwYV").unwrap(); // Funded with USDC
-        let maker = Pubkey::from_str("DSqMPMsMAbEJVNuPKv1ZFdzt6YvJaDPDddfeW7ajtqds").unwrap(); // Real solver
+        let maker = Pubkey::from_str("AMJ81TnD4EWftmVPxppiEPsSFbmfYAvvLkUaNDXuR7JH").unwrap(); // Real solver
         let usdc_mint = Pubkey::from_str("EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v").unwrap();
         let aapl_mint = Pubkey::from_str("123mYEnRLM2LLYsJW3K6oyYh8uP1fngj732iG638ondo").unwrap();
 
@@ -2041,7 +2041,7 @@ mod tests {
             .expect("Failed to get blockhash");
 
         let taker = Pubkey::from_str("7z86y3WYofAiuxhQvYV2U6ZQMQ7jLxncuyV9U7D8PwYV").unwrap(); // Funded with USDC
-        let maker = Pubkey::from_str("DSqMPMsMAbEJVNuPKv1ZFdzt6YvJaDPDddfeW7ajtqds").unwrap(); // Real solver
+        let maker = Pubkey::from_str("AMJ81TnD4EWftmVPxppiEPsSFbmfYAvvLkUaNDXuR7JH").unwrap(); // Real solver
         let aapl_mint = Pubkey::from_str("123mYEnRLM2LLYsJW3K6oyYh8uP1fngj732iG638ondo").unwrap();
         let gm_amount = 3_880_411u64;
         let expire_at = std::time::SystemTime::now()

@@ -132,7 +132,7 @@ fn test_build_mock_mint_instruction() {
     use gm_solana_simulator::GmTradeInfo;
     use solana_sdk::pubkey::Pubkey;
 
-    let solver = Pubkey::from_str("DSqMPMsMAbEJVNuPKv1ZFdzt6YvJaDPDddfeW7ajtqds").unwrap();
+    let solver = Pubkey::from_str("AMJ81TnD4EWftmVPxppiEPsSFbmfYAvvLkUaNDXuR7JH").unwrap();
     let aapl = Pubkey::from_str("123mYEnRLM2LLYsJW3K6oyYh8uP1fngj732iG638ondo").unwrap();
     let maker_output_ata = Pubkey::new_unique();
 

@@ -329,7 +329,7 @@ mod tests {
     #[test]
     fn test_build_mock_mint_instruction() {
         let gm_token = Pubkey::from_str("123mYEnRLM2LLYsJW3K6oyYh8uP1fngj732iG638ondo").unwrap();
-        let solver = Pubkey::from_str("DSqMPMsMAbEJVNuPKv1ZFdzt6YvJaDPDddfeW7ajtqds").unwrap();
+        let solver = Pubkey::from_str("AMJ81TnD4EWftmVPxppiEPsSFbmfYAvvLkUaNDXuR7JH").unwrap();
         let amount = 1_500_000_000u64; // 1.5 tokens
 
         let ix = build_mock_mint_gm_instruction(&gm_token, &solver, amount);
@@ -343,7 +343,7 @@ mod tests {
     #[test]
     fn test_mint_gm_account_layout() {
         let gm_token = Pubkey::from_str("123mYEnRLM2LLYsJW3K6oyYh8uP1fngj732iG638ondo").unwrap();
-        let solver = Pubkey::from_str("DSqMPMsMAbEJVNuPKv1ZFdzt6YvJaDPDddfeW7ajtqds").unwrap();
+        let solver = Pubkey::from_str("AMJ81TnD4EWftmVPxppiEPsSFbmfYAvvLkUaNDXuR7JH").unwrap();
         let program_id = ondo_gm_program_id();
         let pda = |seeds: &[&[u8]]| Pubkey::find_program_address(seeds, &program_id).0;
 
@@ -380,7 +380,7 @@ mod tests {
     #[test]
     fn test_mint_portfolio_account_layout() {
         let brain = Pubkey::from_str("CPcYDPoNoD42Yqvv2kKfB93RqL73vxnXEoRRgqqondo").unwrap();
-        let solver = Pubkey::from_str("DSqMPMsMAbEJVNuPKv1ZFdzt6YvJaDPDddfeW7ajtqds").unwrap();
+        let solver = Pubkey::from_str("AMJ81TnD4EWftmVPxppiEPsSFbmfYAvvLkUaNDXuR7JH").unwrap();
         let program_id = ondo_gm_program_id();
         let pda = |seeds: &[&[u8]]| Pubkey::find_program_address(seeds, &program_id).0;
 
@@ -432,7 +432,7 @@ mod tests {
     #[test]
     fn test_deployed_mint_gm_account_layout() {
         let gm_token = Pubkey::from_str("123mYEnRLM2LLYsJW3K6oyYh8uP1fngj732iG638ondo").unwrap();
-        let solver = Pubkey::from_str("DSqMPMsMAbEJVNuPKv1ZFdzt6YvJaDPDddfeW7ajtqds").unwrap();
+        let solver = Pubkey::from_str("AMJ81TnD4EWftmVPxppiEPsSFbmfYAvvLkUaNDXuR7JH").unwrap();
 
         let deployed = build_mock_mint_gm_instruction(&gm_token, &solver, 1);
 

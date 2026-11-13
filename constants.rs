@@ -33,7 +33,7 @@ pub const AUTHORIZED_SOLVERS: [&str; 3] = [
 
 /// All Ondo GM token mint addresses (mainnet)
 /// Format: (symbol, mint_address)
-pub const GM_TOKENS: [(&str, &str); 467] = [
+pub const GM_TOKENS: [(&str, &str); 473] = [
     ("AALon", "9wYZetvT8J2ptfsRca5gzLBGvcUug38mp9yT3xaondo"),
     ("AAOIon", "YuFZvc8JCN3a6BUAqwnbY4AnhuVEXD4V7QnBTmwondo"),
     ("AAONon", "nwPWRVFCbU3cdXWdJsuwomC5u459xPFdP2vYsmVondo"),
@@ -63,6 +63,7 @@ pub const GM_TOKENS: [(&str, &str); 467] = [
     ("AMKRon", "nvvoP8gFyY2aZp6Cxu9Qq4MQqGrMebjtCxWrYfbondo"),
     ("AMZNon", "14Tqdo8V1FhzKsE3W2pFsZCzYPQxxupXRcqw9jv6ondo"),
     ("ANETon", "Cq6QtvHpXbJWtFaiMhUDtHy8YVZ95gcD1oZ1cohondo"),
+    ("ANTon", "5Kz7Xs8iWvEZFBsyAVDVKgEzNc8KTFxE7eX2Q9jondo"),
     ("AOSLon", "b98FynyBEkdhP4Y3QUvKG36nms4oMsxEZUrCBMvondo"),
     ("APHon", "fFTZ9Jckm2X811mdqRBS4ckMz5bRAJVjH4Jwofwondo"),
     ("APLDon", "B6WqvLGXdGqpw7qgxeb5EGiRZEYo2apWpQybjYuondo"),
@@ -177,13 +178,16 @@ pub const GM_TOKENS: [(&str, &str); 467] = [
     ("EWZon", "CBKcmEvVg5EgE3W5hVSPcBYWh6TFVjQwbmYod9Pondo"),
     ("EXODon", "CJRoTbu98waCCuLFfLuJ2kXawLk889fqW4UAAbwondo"),
     ("EXTRon", "js1cCZRNx8ircYiQJuhBNMnsA9owr6ZLYx6z2uNondo"),
+    ("FBEQon", "foyZp6T4LDjUnv5fpC1syw1oCEDtqE5EtwvWnARondo"),
     ("FCELon", "dYDS22uTX8CtiyixnXY9fMVGAkxbemVAjbCaWVbondo"),
     ("FCXon", "CY8ttw5rYCT6fFBJwqXofefqa7Ji9E8zfLmhRLmondo"),
     ("FFOGon", "CYAwMGyuNSDu7NpuccNwcxMNS5Bu9akxU2Jooyiondo"),
     ("FGDLon", "CYqLHM92EhmF83iNgfN4A1j2ckjsHigRvXu7xHCondo"),
     ("FIGon", "aLDdFsr3VTUQaHFK6yNvQxztvxQ8nxW4AMuSGC7ondo"),
     ("FIGRon", "ZmHxc6Gt27RJKxD2ay6UL4n9yQ7mKAq4XZQUeVhondo"),
+    ("FLCBon", "ngU3GCAVPPNWtgxdJgjmBDorqfi9Tp5UkwMoetHondo"),
     ("FLEXon", "iicfp8Efr4WfGAP9gXmYzdxmNFi1LV3iVudAmCnondo"),
+    ("FLGVon", "Q9JtighCHY2qJg6agoWhNzCKk6Xe5EuRehv2sz5ondo"),
     ("FLHYon", "CZ3FxxSto7tsjkSkqMek1C5p3RCFFmkwKqW57nbondo"),
     ("FLNCon", "bzoe1epsQLx65zmez4pWfBumYzpaFwRTvnmCjZVondo"),
     ("FLQLon", "CZ9GBn1okotqKNUUqoxk4PF2JVi59bw5GWvVo6Dondo"),
@@ -206,8 +210,8 @@ pub const GM_TOKENS: [(&str, &str); 467] = [
     ("GLXYon", "CkWmEM2J79k6AjAwyQVHXteFucAL1zQrKLxLqJHondo"),
     ("GMEon", "aznKt8v32CwYMEcTcB4bGTv8DXWStCpHrcCtyy7ondo"),
     ("GNRCon", "eqzwohR9oCR6sravF4y5HyUwyvCDbnfSYqiiFrXondo"),
-    ("GOOGon", "jcA9zXHWuTuDFDDDDYJTNhersed1B5etkuB6X9Eondo"),
     ("GOOGLon", "bbahNA5vT9WJeYft8tALrH1LXWffjwqVoUbqYa1ondo"),
+    ("GOOGon", "jcA9zXHWuTuDFDDDDYJTNhersed1B5etkuB6X9Eondo"),
     ("GRABon", "m9GcsVgdjaL3KsdtSFHimnhtsUMpTHkjtwEG4Tzondo"),
     ("GRNDon", "Gc1aT3ay7FXL3qdAW7cNSXYPDsGavy7qiACuxwxondo"),
     ("GSon", "BchJRy2snmhJZf3rQ9LJ3ePs2BGfYgfvQNo31d2ondo"),
@@ -381,8 +385,8 @@ pub const GM_TOKENS: [(&str, &str); 467] = [
     ("RMBSon", "jjnSEAsi8UbCez7x9XCbWntLWRHBdc2tWSdC3uoondo"),
     ("ROIVon", "iBnKsRTZ5NpiwhsL3XdViUoem2RLcLfqbPndeumondo"),
     ("ROKon", "e83tWWrVsVk1hRGNz5BCwNr9TMBNWixmoUhWgYcondo"),
-    ("RXRXon", "q16ZLSbANUhpcq15pRUXRxNFfEqgpde9mSBwRcyondo"),
     ("RTXon", "12BvLZtzjdssAycxPeBQUjukhmgQpULAvy6SroYdondo"),
+    ("RXRXon", "q16ZLSbANUhpcq15pRUXRxNFfEqgpde9mSBwRcyondo"),
     ("SAPon", "bjbrNi96mXAzgvxSuGJ2SRJ5U4N8agbG7wUAKAjondo"),
     ("SATAon", "vZVGEJfSM1hS4XdFVAZL2Fr1cbPzJty9vWyax68ondo"),
     ("SATSon", "tuePqnZobDMppUTvzxiLeR56DkivaDjdnUcK1W1ondo"),
@@ -441,6 +445,7 @@ pub const GM_TOKENS: [(&str, &str); 467] = [
     ("TSMon", "keybg184d4vyXeQdFqs4o99YsMg7xBthxTJ6Ky3ondo"),
     ("TTMIon", "kWmjV2XdK5tbV6kZrM8grS6EGFmuH5i5HFW3YyLondo"),
     ("TTon", "erp2t2My8UoFgyRt39EmnnSiDUwUM5aNKw5piBKondo"),
+    ("TTWOon", "MM2WKTU2eNP2pwafKAhcPhWXjcPqrNtTodcND4Yondo"),
     ("TWSTon", "U3wHHv4MXUc3W3zpSfMhSLSjopQCJXqFjkuRUSaondo"),
     ("TXNon", "81xLFvCzFaUM3KDxSHC75pXu3RPCeSeCbmGBY8aondo"),
     ("UAMYon", "nbwNoPaFYNY2c3u4iK6U59ySC2ehFrpjdpfbyLDondo"),
@@ -457,6 +462,7 @@ pub const GM_TOKENS: [(&str, &str); 467] = [
     ("USFRon", "o6U1Sm6Vd7EofMyCrL28mrp2QLzgYGgjveHiEQ5ondo"),
     ("USHYon", "aau4XCAZR6p9uC4vgdHdh4ip3oW5pr5PrNs3FJ8ondo"),
     ("USOon", "rpydAzWdCy85HEmoQkH5PVxYtDYQWjmLxgHHadxondo"),
+    ("USPXon", "i5v9NSDKnEVcTG9CzXJDR2XyhrtNUqFQ3qC5Ka3ondo"),
     ("UUUUon", "ey16y4Bk92zmPSvbRznuv3RioAXbVreBkQxrKGDondo"),
     ("VCXon", "esgtAV7yKf7Ei3Q92VmXcEGkoqY2UqCHzZvCWhgondo"),
     ("VDEon", "hKVpWfYwP1VJ9BcBTPRcovcSpEkvnaN8eXwFoCMondo"),
@@ -505,22 +511,14 @@ pub const GM_TOKENS: [(&str, &str); 467] = [
 
 /// All Ondo portfolio token mint addresses (mainnet)
 /// Format: (symbol, mint_address)
-///
-/// Portfolio tokens trade through the same Jupiter RFQ flow as GM tokens but are
-/// minted with the GM program's `mint_portfolio` instruction, not `mint_gm`.
-///
-/// NOTE: As of 2026-10-18 these mints are not yet deployed. The addresses are the
-/// prod rows in gm `pkg/db/dml/token_addresses/prod/solana.csv` (gm #1626), which
-/// the backend resolves Solana portfolio mints through. They are the vanity keys in
-/// gm-solana `scripts/tokenDeploys/keys/prod`, which `batch-deploy-tokens.ts`
-/// (`STAGE=PROD`) assigns to these symbols. Re-verify against `deploys/oip-prod.json`
-/// once the prod deploy has run.
-pub const PORTFOLIO_TOKENS: [(&str, &str); 7] = [
+pub const PORTFOLIO_TOKENS: [(&str, &str); 9] = [
+    ("BIG5on", "h3g2ZG8a74eVw6j9AxRmXRJACjyGvUUbozGfco9ondo"),
     ("BLKDIGon", "MH63ApKFAH68mTP8M5ofkioN6AomPCV8Ar35dtRondo"),
     ("BLKGRWon", "qr13tSwtPWKTgYQqf6XM8YoT5LrbFgacpVUupfEondo"),
     ("BLKHIon", "bBrSYBsz4GncqiyGzVL4aVrhbmWY3pFHdkxshTpondo"),
     ("BRAINon", "CPcYDPoNoD42Yqvv2kKfB93RqL73vxnXEoRRgqqondo"),
     ("MAG7Xon", "pvC4ogQRN4QtVwEVEB4gW1WADLCFkcTNuxvYVixondo"),
+    ("SPYSHIELDon", "BYN1GKCoFEfJKY2B2C989aMoyeXXbLe2BQv1exeondo"),
     ("YLD5on", "ofe6mC87qNGYgSr9Ps7wMVVSbUFvpcJDDxskPrqondo"),
     ("YLD8on", "LZ6kyzBEniNHQ57cj8KAbkwtXxYbhQDKBQJo5npondo"),
 ];
@@ -589,7 +587,7 @@ mod tests {
 
     #[test]
     fn test_is_authorized_solver() {
-        let solver = Pubkey::from_str("DSqMPMsMAbEJVNuPKv1ZFdzt6YvJaDPDddfeW7ajtqds").unwrap();
+        let solver = Pubkey::from_str("AMJ81TnD4EWftmVPxppiEPsSFbmfYAvvLkUaNDXuR7JH").unwrap();
         assert!(is_authorized_solver(&solver));
 
         let random = Pubkey::new_unique();
