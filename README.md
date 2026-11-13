@@ -203,9 +203,8 @@ The mock mint provides the GM tokens that the fill instruction needs.
 ### Authorized Solvers
 ```
 AMJ81TnD4EWftmVPxppiEPsSFbmfYAvvLkUaNDXuR7JH
-DSqMPMsMAbEJVNuPKv1ZFdzt6YvJaDPDddfeW7ajtqds
-2Cq2RNFFxxPXL7teNQAji1beA2vFbBDYW5BGPBFvoN9m
 9BB7Tt5uE5VdRsxA5XRqrjwNaq8XtgAUQW8czA6ymUPG
+7GyhUnKw2NAjTv9NmpAT3H6VXg7cFHzKA3TFnpiXEAFC
 ```
 
 ### Admin Minter (Real On-Chain Authority)
@@ -485,7 +484,7 @@ Transaction Analysis:
 
       Trade Analysis:
         Taker (user): 5Qaeh6cMTBbzmGUdexmGx8KKTvAgMtsTsBTATM293Q63
-        Maker (solver): 2Cq2RNFFxxPXL7teNQAji1beA2vFbBDYW5BGPBFvoN9m ✓ AUTHORIZED
+        Maker (solver): AMJ81TnD4EWftmVPxppiEPsSFbmfYAvvLkUaNDXuR7JH ✓ AUTHORIZED
         Input mint: EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v (USDC)
         Output mint: 123mYEnRLM2LLYsJW3K6oyYh8uP1fngj732iG638ondo (AAPLon)
 
@@ -507,7 +506,7 @@ Checking GM trade detection...
          (BUY transactions need minting - solver needs GM tokens)
 
 ✓ GM BUY Trade Confirmed:
-  Maker (solver): 2Cq2RNFFxxPXL7teNQAji1beA2vFbBDYW5BGPBFvoN9m
+  Maker (solver): AMJ81TnD4EWftmVPxppiEPsSFbmfYAvvLkUaNDXuR7JH
   Taker (user): 5Qaeh6cMTBbzmGUdexmGx8KKTvAgMtsTsBTATM293Q63
   GM Token: AAPLon (123mYEnRLM2LLYsJW3K6oyYh8uP1fngj732iG638ondo)
   Amount: 39704332
@@ -584,7 +583,7 @@ TEST 1: BUY TRANSACTION (USDC → GM) - REQUIRES BUNDLE SIMULATION
 
 Accounts (BUY):
   Taker:           7z86y3WYofAiuxhQvYV2U6ZQMQ7jLxncuyV9U7D8PwYV
-  Maker:           DSqMPMsMAbEJVNuPKv1ZFdzt6YvJaDPDddfeW7ajtqds
+  Maker:           AMJ81TnD4EWftmVPxppiEPsSFbmfYAvvLkUaNDXuR7JH
   ...
 
 Building BUY transaction:
@@ -664,7 +663,7 @@ Checking GM trade detection...
 ✓ GM BUY trade detected - bundle simulation REQUIRED
 
 ✓ GM BUY Trade Details:
-  Maker (solver): 2Cq2RNFFxxPXL7teNQAji1beA2vFbBDYW5BGPBFvoN9m
+  Maker (solver): AMJ81TnD4EWftmVPxppiEPsSFbmfYAvvLkUaNDXuR7JH
   Taker (user): FGb3upaQC5sRuTnEHRMbpmkkUGiqat9wPVDVnKvSeZvb
   GM Token: TSLAon (KeGv7bsfR4MheC1CkmnAVceoApjrkvBhHYjWb67ondo)
   Amount: 43983669 (0.043984 TSLAon)
